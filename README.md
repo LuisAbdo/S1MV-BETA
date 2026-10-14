@@ -1,2 +1,41 @@
-# S1MV-BETA
-Repositorio dedicado às atualizações do projeto
+# S1MV-BETA — Sobreviva a um Milhão de Veritys
+
+Repositório dedicado às atualizações do projeto.
+
+Jogo de Roblox de sobrevivência por waves: os jogadores defendem o **Núcleo** de hordas de
+Veritys, compram armas por tier, constroem defesas na Loja do Núcleo, usam classes com
+habilidades e evoluem a conta no **Main Lobby** (gemas, classes, armas, recompensas diárias).
+
+## Estrutura
+
+O código é exportado do Roblox Studio seguindo a convenção do [Rojo](https://rojo.space):
+
+| Extensão       | Tipo no Studio |
+|----------------|----------------|
+| `.server.lua`  | Script         |
+| `.client.lua`  | LocalScript    |
+| `.lua`         | ModuleScript   |
+
+As pastas espelham a hierarquia do Studio (`ServerScriptService`, `ReplicatedStorage`, `StarterPlayer`…).
+
+```
+missao/      place da missão (mapa, waves, Núcleo, loja, armas, classes)
+main-lobby/  place do Main Lobby (perfil, lojas, classes, grupos e teleporte)
+```
+
+> Mapas, modelos e sons ficam no Roblox (não estão neste repositório) — aqui está só o código.
+
+## Arquitetura da missão
+
+- `ServerScriptService/Bootstrap.server.lua` carrega os serviços de `Services/` em ordem
+  (`Init()` de todos, depois `Start()`).
+- `ReplicatedStorage/Shared/Config/*` reúne **todos os números do jogo** (vida, dano, custos,
+  waves, sons). Para balancear, mexa só ali.
+- `StarterPlayer/StarterPlayerScripts/*Cliente` cuidam de interface, efeitos e sons; o servidor
+  revalida todas as compras e ações.
+
+## Segurança
+
+Nunca use `require(<número>)` nem modelos grátis com scripts. Um plugin malicioso já tentou
+injetar `require(5355299916)` no `Bootstrap` — se aparecer de novo, remova o plugin
+(Plugins → Manage Plugins) antes de publicar.
