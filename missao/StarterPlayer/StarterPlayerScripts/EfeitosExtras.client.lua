@@ -306,6 +306,87 @@ local SEM_CAPSULA = { Estilingue = true, LancaChamas = true }
 local function weaponCfg(id)
 	for _, w in ipairs(WCfg.Armas) do if w.Id == id then return w end end
 end
+-- Capsula de latao de verdade: sai QUENTE (luz laranja que esfria), gira, quica no chao com
+-- "tlim" a cada batida, rola um pouco e fica deitada alguns segundos antes de sumir.
+local SONS_C = require(Shared.Config:WaitForChild("Sons"))
+local BRASS = Color3.fromRGB(226, 178, 72)
+local HOT = Color3.fromRGB(255, 140, 40)
+local TAM_CAPSULA = { Pistola = 0.6, Rifle = 0.7, Bazuca = 1.1 }
+local casings = {}
+local MAX_CASINGS = 45
+local function tink(pos, pitch, vol)
+	local a = Instance.new("Attachment")
+	a.WorldPosition = pos
+	a.Parent = workspace.Terrain
+	local s = Instance.new("Sound")
+	s.SoundId = SONS_C.Capsula.Id
+	s.Volume = (SONS_C.Capsula.V or 0.2) * (vol or 1)
+	s.PlaybackSpeed = pitch
+	s.RollOffMinDistance = 4
+	s.RollOffMaxDistance = 45
+	s.Parent = a
+	s:Play()
+	Debris:AddItem(a, 2)
+end
+local function ejectCasing(origin, cf, len)
+	if #casings >= MAX_CASINGS then
+		local old = table.remove(casings, 1)
+		if old.p.Parent then old.p:Destroy() end
+	end
+	local p = part({ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Metal, Color = HOT, Reflectance = 0.25,
+		Size = Vector3.new(len, len * 0.34, len * 0.34), CFrame = cf })
+	if not p then return end
+	local glow = Instance.new("PointLight")
+	glow.Color = HOT
+	glow.Range = 3.5
+	glow.Brightness = 2.2
+	glow.Parent = p
+	local right, look = cf.RightVector, cf.LookVector
+	local v = right * rng:NextNumber(8, 12) + Vector3.new(0, rng:NextNumber(9, 14), 0) - look * rng:NextNumber(1, 3)
+	table.insert(casings, { p = p, light = glow, vel = v, spin = Vector3.new(rng:NextNumber(-25, 25), rng:NextNumber(-30, 30), rng:NextNumber(-25, 25)),
+		t = 0, floorY = groundY(origin), bounces = 0, rest = false, len = len })
+end
+RunService.Heartbeat:Connect(function(dt)
+	for i = #casings, 1, -1 do
+		local c = casings[i]
+		local p = c.p
+		if not p.Parent then table.remove(casings, i) continue end
+		c.t += dt
+		-- esfria: laranja -> latao, luz apaga
+		local heat = math.clamp(1 - c.t / 0.7, 0, 1)
+		p.Color = BRASS:Lerp(HOT, heat)
+		c.light.Brightness = 2.2 * heat
+		if not c.rest then
+			c.vel -= Vector3.new(0, 75 * dt, 0)
+			local pos = p.Position + c.vel * dt
+			local floorTop = c.floorY + c.len * 0.17
+			if pos.Y <= floorTop and c.vel.Y < 0 then
+				pos = Vector3.new(pos.X, floorTop, pos.Z)
+				c.bounces += 1
+				local impactV = -c.vel.Y
+				if impactV > 3 then tink(pos, 1.2 + rng:NextNumber() * 0.5 + c.bounces * 0.12, math.clamp(impactV / 14, 0.3, 1)) end
+				c.vel = Vector3.new(c.vel.X * 0.55, impactV * 0.38, c.vel.Z * 0.55)
+				c.spin *= 0.5
+				if impactV < 3 or c.bounces >= 4 then
+					-- deita de lado e rola um pouquinho
+					c.rest = true
+					local yaw = rng:NextNumber(0, math.pi * 2)
+					local final = CFrame.new(pos) * CFrame.Angles(0, yaw, 0)
+					TweenService:Create(p, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+						{ CFrame = final + Vector3.new(math.cos(yaw), 0, -math.sin(yaw)) * rng:NextNumber(0.2, 0.7) }):Play()
+					c.restAt = c.t
+				end
+			end
+			if not c.rest then
+				p.CFrame = CFrame.new(pos) * (p.CFrame - p.Position) * CFrame.Angles(c.spin.X * dt, c.spin.Y * dt, c.spin.Z * dt)
+			end
+		elseif c.t - c.restAt > 5 then
+			p.Transparency = math.min(1, p.Transparency + dt * 1.5)
+			if p.Transparency >= 1 then p:Destroy() table.remove(casings, i) end
+		end
+	end
+end)
+
 remotes.Tiro.OnClientEvent:Connect(function(shooter, weaponId, muzzle)
 	if SEM_CAPSULA[weaponId] then return end
 	local w = weaponCfg(weaponId)
@@ -316,13 +397,12 @@ remotes.Tiro.OnClientEvent:Connect(function(shooter, weaponId, muzzle)
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	if not h or not root then return end
 	local cam = workspace.CurrentCamera
-	if cam and (h.Position - cam.CFrame.Position).Magnitude > 80 then return end
-	local right = root.CFrame.RightVector
-	local v = right * rng:NextNumber(7, 11) + Vector3.new(0, rng:NextNumber(8, 13), 0) - root.CFrame.LookVector * rng:NextNumber(1, 3)
-	local shell = part({ Color = Color3.fromRGB(240, 190, 60), Material = Enum.Material.Metal, Size = Vector3.new(0.12, 0.12, 0.3), CFrame = h.CFrame })
-	if shell then
-		shell:Destroy()
-		chunk(h.Position + Vector3.new(0, 0.3, 0), Color3.fromRGB(240, 190, 60), 0.16, v, 0.9, { floorY = groundY(h.Position), bounce = 0.45, grav = 70 })
+	if cam and (h.Position - cam.CFrame.Position).Magnitude > 90 then return end
+	local len = TAM_CAPSULA[weaponId] or 0.6
+	local at = h.Position + root.CFrame.RightVector * 0.3 + Vector3.new(0, 0.3, 0)
+	ejectCasing(at, CFrame.new(at) * (root.CFrame - root.CFrame.Position), len)
+	if w.Projeteis and w.Projeteis > 1 then
+		for _ = 2, math.min(w.Projeteis, 3) do ejectCasing(at, CFrame.new(at) * (root.CFrame - root.CFrame.Position) * CFrame.Angles(0, rng:NextNumber(-0.4, 0.4), 0), len) end
 	end
 end)
 
@@ -386,24 +466,112 @@ player:GetAttributeChangedSignal("NivelVida"):Connect(function()
 end)
 
 -- NUCLEO: estilhacos e brilho quando leva dano ------------------------------------------
-local core = CollectionService:GetTagged("Nucleo")[1]
-local esf = core and core:FindFirstChild("NucleoEsfera")
+-- (com StreamingEnabled o Nucleo pode ainda nao ter chegado quando o script comeca: busca na hora)
+local esf
+local function getEsf()
+	if esf and esf.Parent then return esf end
+	local core = CollectionService:GetTagged("Nucleo")[1]
+	esf = core and core:FindFirstChild("NucleoEsfera")
+	return esf
+end
 local lastCore = estado:GetAttribute("CoreVida")
 local lastCoreFx = 0
+-- IMPACTO NO ESCUDO DO NUCLEO: o inimigo bate num escudo de energia (nao direto no nucleo).
+-- Ondulacao hexagonal no ponto atingido (na cor do tier), arco eletrico ate a esfera, anel de
+-- choque virado para o atacante, faiscas, e o atacante pisca branco.
+local CoreCfgE = require(Shared.Config:WaitForChild("Core"))
+local SHIELD_R = 8.5
+local function tierCol()
+	local t = estado:GetAttribute("CoreTier") or 1
+	local v = CoreCfgE.VisualTier and CoreCfgE.VisualTier[math.clamp(t, 1, #CoreCfgE.VisualTier)]
+	if v and v.Arcoiris then return Color3.fromHSV((os.clock() * 0.12) % 1, 0.55, 1) end
+	return v and v.Cor or Color3.fromRGB(0, 229, 255)
+end
+local function attackerNearCore(center)
+	if not ativos then return nil end
+	local best, bd
+	for _, m in ipairs(ativos:GetChildren()) do
+		local b = m:FindFirstChild("Corpo")
+		if b then
+			local d = (Vector3.new(b.Position.X, 0, b.Position.Z) - Vector3.new(center.X, 0, center.Z)).Magnitude
+			if d < 22 and (not bd or d < bd) then best, bd = b, d end
+		end
+	end
+	return best
+end
+local function arc(from, to, color)
+	local pts = { from }
+	local n = 6
+	for i = 1, n - 1 do
+		local p = from:Lerp(to, i / n) + Vector3.new(rng:NextNumber(-0.9, 0.9), rng:NextNumber(-0.9, 0.9), rng:NextNumber(-0.9, 0.9))
+		table.insert(pts, p)
+	end
+	table.insert(pts, to)
+	for i = 1, #pts - 1 do
+		local a, b = pts[i], pts[i + 1]
+		local d = (b - a).Magnitude
+		local seg = part({ Material = Enum.Material.Neon, Color = color:Lerp(Color3.new(1, 1, 1), 0.5), Size = Vector3.new(0.14, 0.14, d), CFrame = CFrame.lookAt(a, b) * CFrame.new(0, 0, -d / 2) })
+		if seg then
+			TweenService:Create(seg, TweenInfo.new(0.16), { Transparency = 1, Size = Vector3.new(0.03, 0.03, d) }):Play()
+			Debris:AddItem(seg, 0.18)
+		end
+	end
+end
 estado:GetAttributeChangedSignal("CoreVida"):Connect(function()
 	local v = estado:GetAttribute("CoreVida")
-	if lastCore and v and v < lastCore and esf and os.clock() - lastCoreFx > 0.15 then
+	if lastCore and v and v < lastCore and getEsf() and os.clock() - lastCoreFx > 0.12 then
 		lastCoreFx = os.clock()
-		local pos = esf.Position
-		for _ = 1, 5 do
-			local dir = Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(-0.2, 1), rng:NextNumber(-1, 1)).Unit
-			chunk(pos + dir * esf.Size.X * 0.6, esf.Color, rng:NextNumber(0.2, 0.4), dir * rng:NextNumber(8, 14), 0.7, { neon = true, grav = 30 })
+		local center = esf.Position
+		local col = tierCol()
+		local enemy = attackerNearCore(center)
+		local dir = enemy and (enemy.Position - center) or Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1))
+		dir = Vector3.new(dir.X, math.clamp(dir.Y, -2, 3), dir.Z)
+		dir = dir.Magnitude > 0.01 and dir.Unit or Vector3.new(1, 0, 0)
+		local hit = center + dir * SHIELD_R
+		-- 1) bolha do escudo acende inteira bem fraca + ondulacao forte no ponto do impacto
+		local bubble = part({ Shape = Enum.PartType.Ball, Material = Enum.Material.ForceField, Color = col, Transparency = 0.55, Size = Vector3.one * SHIELD_R * 2, Position = center })
+		if bubble then
+			TweenService:Create(bubble, TweenInfo.new(0.35, Enum.EasingStyle.Quad), { Transparency = 1, Size = Vector3.one * SHIELD_R * 2.08 }):Play()
+			Debris:AddItem(bubble, 0.4)
 		end
-		local shell = part({ Shape = Enum.PartType.Ball, Material = Enum.Material.ForceField, Color = Color3.fromRGB(255, 80, 80),
-			Size = Vector3.one * esf.Size.X * 1.6, Position = pos, Transparency = 0.2 })
-		if shell then
-			TweenService:Create(shell, TweenInfo.new(0.25), { Size = Vector3.one * esf.Size.X * 2.4, Transparency = 1 }):Play()
-			Debris:AddItem(shell, 0.3)
+		local ripple = part({ Shape = Enum.PartType.Ball, Material = Enum.Material.ForceField, Color = col, Transparency = 0, Size = Vector3.one * 1.5, Position = hit })
+		if ripple then
+			TweenService:Create(ripple, TweenInfo.new(0.32, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = Vector3.one * 7, Transparency = 1 }):Play()
+			Debris:AddItem(ripple, 0.35)
+		end
+		-- 2) anel de choque virado para o atacante
+		local ringP = part({ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Neon, Color = col, Transparency = 0.1, Size = Vector3.new(0.12, 1, 1),
+			CFrame = CFrame.lookAt(hit, hit + dir) * CFrame.Angles(0, math.rad(90), 0) })
+		if ringP then
+			TweenService:Create(ringP, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = Vector3.new(0.05, 6, 6), Transparency = 1 }):Play()
+			Debris:AddItem(ringP, 0.3)
+		end
+		-- 3) arco eletrico do impacto ate a esfera + clarao
+		arc(hit, center + dir * esf.Size.X * 0.5, col)
+		local flash = part({ Shape = Enum.PartType.Ball, Material = Enum.Material.Neon, Color = Color3.new(1, 1, 1), Transparency = 0.1, Size = Vector3.one * 0.8, Position = hit })
+		if flash then
+			local l = Instance.new("PointLight"); l.Color = col; l.Range = 14; l.Brightness = 5; l.Parent = flash
+			TweenService:Create(flash, TweenInfo.new(0.15), { Size = Vector3.one * 2.4, Transparency = 1 }):Play()
+			TweenService:Create(l, TweenInfo.new(0.2), { Brightness = 0 }):Play()
+			Debris:AddItem(flash, 0.22)
+		end
+		-- 4) faiscas espirrando para fora do escudo
+		for _ = 1, 6 do
+			local sd = (dir + Vector3.new(rng:NextNumber(-0.7, 0.7), rng:NextNumber(0, 0.9), rng:NextNumber(-0.7, 0.7))).Unit
+			chunk(hit, col:Lerp(Color3.new(1, 1, 1), rng:NextNumber(0, 0.6)), rng:NextNumber(0.12, 0.25), sd * rng:NextNumber(12, 20), 0.45, { neon = true, grav = 40 })
+		end
+		-- 5) o atacante pisca branco
+		if enemy then
+			local hl = enemy:FindFirstChild("PiscaEscudo") or Instance.new("Highlight")
+			hl.Name = "PiscaEscudo"
+			hl.FillColor = Color3.new(1, 1, 1)
+			hl.OutlineTransparency = 1
+			hl.DepthMode = Enum.HighlightDepthMode.Occluded
+			hl.FillTransparency = 0.2
+			hl.Adornee = enemy
+			hl.Parent = enemy
+			TweenService:Create(hl, TweenInfo.new(0.18), { FillTransparency = 1 }):Play()
+			Debris:AddItem(hl, 0.2)
 		end
 	end
 	lastCore = v

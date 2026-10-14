@@ -19,6 +19,12 @@ local smokes = {}
 local SLOTS = { Z = 1, X = 2, C = 3, Q = 3 }
 
 local function log(...) print("[ClassService]", ...) end
+local restoreVisibility -- definida mais abaixo (usada antes em SetFromLobby)
+
+-- efeitos visuais ficam no cliente (ClassesVFX); o servidor so manda o que aconteceu e onde
+local function vfx(name, ...)
+	remotes.Efeito:FireAllClients("ClasseFX", name, ...)
+end
 local function now() return workspace:GetServerTimeNow() end
 
 -- UTIL -----------------------------------------------------------------
@@ -174,7 +180,7 @@ function ClassService:OnWeaponHit(player, n)
 	end
 end
 
-local function restoreVisibility(player)
+function restoreVisibility(player)
 	local char = player.Character
 	if not char then return end
 	for _, d in ipairs(char:GetDescendants()) do
@@ -211,8 +217,9 @@ A.Soldado = {
 	Z = function(player, st, root, aim, h, mult)
 		local pas = Cfg.Classes.Soldado.Passiva
 		local target = clampAim(root, aim, h.Alcance)
-		lob(root.Position + Vector3.new(0, 2, 0), target, Color3.fromRGB(70, 90, 50), h.Atraso, function()
-			explosion(target, h.Raio)
+		vfx("Granada", root.Position + Vector3.new(0, 2, 0), target + Vector3.new(0, 0.6, 0), h.Atraso)
+		task.delay(h.Atraso, function()
+			vfx("Explosao", target, h.Raio)
 			local dmg = h.Dano * mult * (1 + pas.DanoArea) * (player:GetAttribute("MultDano") or 1)
 			for _, mdl in ipairs(enemiesIn(target, h.Raio)) do hitEnemy(player, mdl, dmg) end
 		end)
@@ -221,7 +228,7 @@ A.Soldado = {
 	X = function(player, st, root, aim, h, mult)
 		local pas = Cfg.Classes.Soldado.Passiva
 		local pos = root.Position - Vector3.new(0, 2.5, 0)
-		ring(pos, h.Raio, Color3.fromRGB(255, 220, 120), 0.35)
+		vfx("Onda", player, pos, h.Raio)
 		local dmg = h.Dano * mult * (1 + pas.DanoArea) * (player:GetAttribute("MultDano") or 1)
 		for _, mdl in ipairs(enemiesIn(root.Position, h.Raio)) do
 			local b = mdl:FindFirstChild("Corpo")
@@ -233,14 +240,15 @@ A.Soldado = {
 	end,
 	C = function(player, st, root, aim, h, mult)
 		local untilT = now() + h.Duracao * mult
+		local buffed = {}
 		for _, pl in ipairs(Players:GetPlayers()) do
 			local _, r = charOf(pl)
 			if r and (r.Position - root.Position).Magnitude <= h.Raio and states[pl] then
 				states[pl].warcryUntil = untilT
-				sparkle(r.Position, Color3.fromRGB(255, 80, 60), 18)
+				table.insert(buffed, pl)
 			end
 		end
-		ring(root.Position - Vector3.new(0, 2.5, 0), h.Raio, Color3.fromRGB(255, 80, 60), 0.5)
+		vfx("Grito", player, root.Position - Vector3.new(0, 2.5, 0), h.Raio, buffed, h.Duracao * mult)
 		remotes.Aviso:FireAllClients("GRITO DE GUERRA! +" .. math.floor(h.BonusDano * 100) .. "% de dano")
 		return true
 	end,
@@ -248,17 +256,14 @@ A.Soldado = {
 		local pas = Cfg.Classes.Soldado.Passiva
 		local center = clampAim(root, aim, h.Alcance)
 		local dmg = h.Dano * mult * (1 + pas.DanoArea) * (player:GetAttribute("MultDano") or 1)
+		vfx("ChuvaMarca", center, h.Raio, h.Duracao + 0.5)
 		task.spawn(function()
 			for i = 1, h.Granadas do
 				local a = math.random() * math.pi * 2
 				local r = math.sqrt(math.random()) * h.Raio
 				local p = groundAt(center + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r))
-				local ball = fx(Enum.PartType.Ball, Color3.fromRGB(70, 90, 50), Vector3.one * 1.3, CFrame.new(p + Vector3.new(0, 40, 0)))
-				local t = TweenService:Create(ball, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Position = p + Vector3.new(0, 0.6, 0) })
-				t:Play()
-				t.Completed:Connect(function()
-					ball:Destroy()
-					explosion(p, h.RaioExplosao)
+				vfx("GranadaCai", p, h.RaioExplosao, 0.45)
+				task.delay(0.45, function()
 					if player.Parent then
 						for _, mdl in ipairs(enemiesIn(p, h.RaioExplosao)) do hitEnemy(player, mdl, dmg) end
 					end
@@ -283,20 +288,21 @@ A.Ninja = {
 		local hit = workspace:Raycast(start, dir * dist, rp)
 		if hit then dist = math.max(0, (hit.Position - start).Magnitude - 2) end
 		local finish = start + dir * dist
-		-- rastro
-		local trail = fx(nil, Color3.fromRGB(150, 200, 255), Vector3.new(1.2, 3, math.max(1, dist)), CFrame.lookAt(start, finish) * CFrame.new(0, 0, -dist / 2), { transparency = 0.3 })
-		TweenService:Create(trail, TweenInfo.new(0.3), { Transparency = 1, Size = Vector3.new(0.1, 3, math.max(1, dist)) }):Play()
-		Debris:AddItem(trail, 0.35)
 		root.CFrame = CFrame.lookAt(finish, finish + dir)
 		local dmg = h.Dano * mult * (player:GetAttribute("MultDano") or 1)
+		local hitPos = {}
 		for _, mdl in ipairs(Enemy:Folder():GetChildren()) do
 			local b = mdl:FindFirstChild("Corpo")
 			if b then
 				local rel = flat(b.Position - start)
 				local along = rel:Dot(dir)
-				if along >= -1 and along <= dist + 2 and (rel - dir * along).Magnitude <= h.Largura then hitEnemy(player, mdl, dmg) end
+				if along >= -1 and along <= dist + 2 and (rel - dir * along).Magnitude <= h.Largura then
+					hitEnemy(player, mdl, dmg)
+					if #hitPos < 12 then table.insert(hitPos, b.Position) end
+				end
 			end
 		end
+		vfx("Dash", player, start, finish, hitPos)
 		return true
 	end,
 	X = function(player, st, root, aim, h, mult)
@@ -304,20 +310,7 @@ A.Ninja = {
 		local radius = h.Raio
 		local dur = h.Duracao * mult
 		table.insert(smokes, { pos = pos, radius = radius, untilT = now() + dur })
-		local cloud = fx(nil, Color3.new(1, 1, 1), Vector3.new(radius * 2, 4, radius * 2), CFrame.new(pos + Vector3.new(0, 2, 0)), { transparency = 1 })
-		local e = Instance.new("ParticleEmitter")
-		e.Texture = "rbxasset://textures/particles/smoke_main.dds"
-		e.Color = ColorSequence.new(Color3.fromRGB(200, 200, 210))
-		e.Size = NumberSequence.new(8, 14)
-		e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.2, 0.25), NumberSequenceKeypoint.new(1, 1) })
-		e.Lifetime = NumberRange.new(2, 3)
-		e.Rate = 40
-		e.Speed = NumberRange.new(1, 3)
-		e.SpreadAngle = Vector2.new(180, 180)
-		e.Shape = Enum.ParticleEmitterShape.Box
-		e.Parent = cloud
-		task.delay(dur, function() e.Enabled = false end)
-		Debris:AddItem(cloud, dur + 3.5)
+		vfx("Fumaca", pos, radius, dur)
 		-- inimigos dentro perdem o alvo na hora
 		for _, mdl in ipairs(enemiesIn(pos, radius)) do Enemy:DropTarget(mdl) end
 		return true
@@ -328,17 +321,13 @@ A.Ninja = {
 		dir = dir.Unit
 		local start = root.Position
 		local dmg = h.Dano * mult * (player:GetAttribute("MultDano") or 1)
+		local dirs = {}
 		for i = 1, h.Quantidade do
 			local ang = math.rad((i - (h.Quantidade + 1) / 2) * h.Espalhamento)
 			local d = (CFrame.Angles(0, ang, 0) * CFrame.new(Vector3.zero, dir)).LookVector
 			d = flat(d).Unit
 			local finish = start + d * h.Alcance
-			local star = fx(nil, Color3.fromRGB(200, 200, 215), Vector3.new(1.4, 0.2, 1.4), CFrame.new(start), { material = Enum.Material.Metal })
-			local star2 = fx(nil, Color3.fromRGB(200, 200, 215), Vector3.new(1.4, 0.2, 1.4), CFrame.new(start) * CFrame.Angles(0, math.rad(45), 0), { material = Enum.Material.Metal })
-			for _, s in ipairs({ star, star2 }) do
-				TweenService:Create(s, TweenInfo.new(0.35, Enum.EasingStyle.Linear), { CFrame = CFrame.new(finish) * CFrame.Angles(0, math.rad(720), 0) }):Play()
-				Debris:AddItem(s, 0.4)
-			end
+			table.insert(dirs, d)
 			local already = {}
 			for _, mdl in ipairs(Enemy:Folder():GetChildren()) do
 				local b = mdl:FindFirstChild("Corpo")
@@ -347,11 +336,18 @@ A.Ninja = {
 					local along = rel:Dot(d)
 					if along >= 0 and along <= h.Alcance and (rel - d * along).Magnitude <= 2.5 + b.Size.X / 2 then
 						already[mdl] = true
-						task.delay(along / h.Alcance * 0.35, function() if mdl.Parent then hitEnemy(player, mdl, dmg) end end)
+						task.delay(along / h.Alcance * 0.35, function()
+							if mdl.Parent then
+								local bb = mdl:FindFirstChild("Corpo")
+								if bb then vfx("ShurikenHit", bb.Position) end
+								hitEnemy(player, mdl, dmg)
+							end
+						end)
 					end
 				end
 			end
 		end
+		vfx("Shuriken", start, dirs, h.Alcance)
 		return true
 	end,
 	Q = function(player, st, root, aim, h, mult)
@@ -366,7 +362,7 @@ A.Ninja = {
 		player:SetAttribute("Oculto", true)
 		player:SetAttribute("CriticoGarantido", true)
 		st.shadowUntil = now() + dur
-		sparkle(root.Position, Color3.fromRGB(90, 70, 140), 30)
+		vfx("Sombra", player, dur)
 		task.delay(dur, function()
 			if states[player] and now() >= (states[player].shadowUntil or 0) - 0.05 then restoreVisibility(player) end
 		end)
@@ -377,18 +373,20 @@ A.Ninja = {
 A.Engenheiro = {
 	Z = function(player, st, root, aim, h, mult)
 		local pos = clampAim(root, aim, h.Distancia)
+		vfx("Implantar", pos, Color3.fromRGB(80, 200, 255), 4)
 		Ally:SpawnMoggity(player, pos, h, mult * (1 + (estado:GetAttribute("BonusTorreta") or 0)))
 		return true
 	end,
 	X = function(player, st, root, aim, h, mult)
 		local pos = clampAim(root, aim, h.Distancia)
+		vfx("Implantar", pos, Color3.fromRGB(255, 170, 60), 4)
 		Ally:SpawnDecoy(player, pos, { Duracao = h.Duracao * mult, Vida = h.Vida * mult, RaioAtracao = h.RaioAtracao })
 		return true
 	end,
 	C = function(player, st, root, aim, h, mult)
 		local pos = clampAim(root, aim, h.Distancia)
-		local dev = fx(nil, Color3.fromRGB(80, 80, 90), Vector3.new(2, 1.6, 2), CFrame.new(pos + Vector3.new(0, 0.8, 0)), { material = Enum.Material.Metal })
-		local core = fx(Enum.PartType.Ball, Color3.fromRGB(150, 90, 255), Vector3.one * 1.2, CFrame.new(pos + Vector3.new(0, 2, 0)))
+		local corePos = pos + Vector3.new(0, 2.6, 0)
+		vfx("Plasma", pos, h.Raio, h.Duracao)
 		local dmg = h.Dano * mult * (player:GetAttribute("MultDano") or 1)
 		task.spawn(function()
 			local t0 = os.clock()
@@ -396,22 +394,17 @@ A.Engenheiro = {
 				local a = math.random() * math.pi * 2
 				local r = math.random() * h.Raio
 				local p = groundAt(pos + Vector3.new(math.cos(a) * r, 0, math.sin(a) * r))
-				local beam = fx(nil, Color3.fromRGB(170, 110, 255), Vector3.new(0.3, 0.3, (p - core.Position).Magnitude), CFrame.lookAt(core.Position, p) * CFrame.new(0, 0, -(p - core.Position).Magnitude / 2))
-				Debris:AddItem(beam, 0.1)
-				explosion(p, h.RaioExplosao, Color3.fromRGB(170, 110, 255))
+				vfx("PlasmaZap", corePos, p, h.RaioExplosao)
 				for _, mdl in ipairs(enemiesIn(p, h.RaioExplosao)) do hitEnemy(player, mdl, dmg) end
 				task.wait(h.Intervalo)
 			end
-			dev:Destroy(); core:Destroy()
 		end)
 		return true
 	end,
 	Q = function(player, st, root, aim, h, mult)
 		estado:SetAttribute("SobrecargaAte", now() + h.Duracao * mult)
 		remotes.Aviso:FireAllClients("SOBRECARGA! Torretas atiram 2x")
-		for _, st2 in ipairs(CollectionService:GetTagged("Estrutura")) do
-			if st2.PrimaryPart then sparkle(st2.PrimaryPart.Position, Color3.fromRGB(255, 220, 60), 10) end
-		end
+		vfx("Sobrecarga", h.Duracao * mult)
 		return true
 	end,
 }
@@ -419,7 +412,9 @@ A.Engenheiro = {
 A.Medico = {
 	Z = function(player, st, root, aim, h, mult)
 		local pas = Cfg.Classes.Medico.Passiva
-		Ally:SpawnLovity(player, clampAim(root, aim, h.Distancia), h, mult * (1 + pas.Cura))
+		local pos = clampAim(root, aim, h.Distancia)
+		vfx("Implantar", pos, Color3.fromRGB(255, 140, 200), 3)
+		Ally:SpawnLovity(player, pos, h, mult * (1 + pas.Cura))
 		return true
 	end,
 	X = function(player, st, root, aim, h, mult)
@@ -445,13 +440,7 @@ A.Medico = {
 		if not th then return false end
 		local heal = h.Cura * mult * (1 + pas.Cura)
 		th.Health = math.min(th.MaxHealth, th.Health + heal)
-		if target ~= player then
-			local d = (tr.Position - root.Position).Magnitude
-			local beam = fx(nil, Color3.fromRGB(120, 255, 160), Vector3.new(0.4, 0.4, d), CFrame.lookAt(root.Position, tr.Position) * CFrame.new(0, 0, -d / 2))
-			TweenService:Create(beam, TweenInfo.new(0.25), { Transparency = 1 }):Play()
-			Debris:AddItem(beam, 0.3)
-		end
-		sparkle(tr.Position, Color3.fromRGB(120, 255, 160), 16)
+		vfx("Cura", root.Position + Vector3.new(0, 1, 0), target, heal)
 		return true
 	end,
 	C = function(player, st, root, aim, h, mult)
@@ -464,10 +453,10 @@ A.Medico = {
 		local dist = h.Distancia * mult
 		local hit = workspace:Raycast(root.Position, dir * dist, rp)
 		if hit then dist = math.max(0, (hit.Position - root.Position).Magnitude - 2) end
-		sparkle(root.Position, Color3.fromRGB(255, 160, 210), 16)
-		local finish = root.Position + dir * dist
+		local start = root.Position
+		local finish = start + dir * dist
 		root.CFrame = CFrame.lookAt(finish, finish + dir)
-		sparkle(finish, Color3.fromRGB(255, 160, 210), 16)
+		vfx("Fase", player, start, finish)
 		return true
 	end,
 	Q = function(player, st, root, aim, h, mult)
@@ -477,6 +466,7 @@ A.Medico = {
 			local a = i / h.Quantidade * math.pi * 2
 			Ally:SpawnLovity(player, root.Position + Vector3.new(math.cos(a) * 7, 0, math.sin(a) * 7), lov, mult * (1 + pas.Cura))
 		end
+		vfx("Coro", player, root.Position, h.Quantidade)
 		remotes.Aviso:FireAllClients("CORO DE LOVITIES!")
 		return true
 	end,
@@ -522,6 +512,38 @@ local function useAbility(player, slot, aim)
 	end
 end
 
+-- DEV: troca livre de classe para testes (so desenvolvedores; tudo validado aqui) ----------
+local function isDev(player)
+	if RunService:IsStudio() then return true end
+	if game.CreatorType == Enum.CreatorType.User and player.UserId == game.CreatorId then return true end
+	for _, id in ipairs(Cfg.Desenvolvedores or {}) do
+		if player.UserId == id then return true end
+	end
+	return false
+end
+
+local function devSwitch(player, name, evo, opts)
+	if not isDev(player) then return end
+	local st = states[player]
+	if not st or typeof(name) ~= "string" or not Cfg.Classes[name] then return end
+	if typeof(evo) ~= "number" or evo ~= evo then evo = st.evo end
+	evo = math.clamp(math.floor(evo), 1, 3)
+	opts = typeof(opts) == "table" and opts or {}
+	setClass(player, name)
+	st.evo = evo
+	player:SetAttribute("Evolucao", evo)
+	player:SetAttribute("ClasseEscolhida", true)
+	restoreVisibility(player)
+	if opts.UltCheia == true then
+		st.ult = Cfg.Classes[name].Habilidades.Q.Carga or 0
+		player:SetAttribute("UltCarga", st.ult)
+	end
+	local _, root = charOf(player)
+	if root then vfx("Implantar", root.Position - Vector3.new(0, 2.5, 0), Cfg.Classes[name].Cor, 5) end
+	remotes.Aviso:FireClient(player, "[DEV] " .. Cfg.Classes[name].Nome .. " - Evolução " .. evo)
+	log("[DEV] " .. player.Name .. " -> " .. name .. " evo " .. evo)
+end
+
 -- PASSIVAS / BONUS DE TIME (loop unico) ---------------------------------
 local function teamBonuses()
 	local present = {}
@@ -552,6 +574,7 @@ function ClassService:Start()
 		-- a classe ativa vem do Laboratorio (LobbyService:SetFromLobby)
 		setClass(player, Cfg.ClassePadrao)
 		player:SetAttribute("ClasseEscolhida", false)
+		player:SetAttribute("Dev", isDev(player))
 		player.CharacterAdded:Connect(function()
 			player:SetAttribute("Oculto", false)
 			player:SetAttribute("CriticoGarantido", false)
@@ -582,6 +605,13 @@ function ClassService:Start()
 		log(player.Name .. " escolheu " .. name)
 	end)
 	remotes.UsarHabilidade.OnServerEvent:Connect(useAbility)
+	local devRemote = remotes:FindFirstChild("TrocarClasseDev")
+	if not devRemote then
+		devRemote = Instance.new("RemoteEvent")
+		devRemote.Name = "TrocarClasseDev"
+		devRemote.Parent = remotes
+	end
+	devRemote.OnServerEvent:Connect(devSwitch)
 	-- ULT carrega com abates (como o medidor do video)
 	table.insert(Enemy.OnDied, function(_, killerUserId)
 		local pl = killerUserId and Players:GetPlayerByUserId(killerUserId)

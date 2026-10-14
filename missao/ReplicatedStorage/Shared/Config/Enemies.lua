@@ -1,6 +1,6 @@
 -- Config/Enemies: atributos dos inimigos e parametros da IA.
 return {
-	MaxVivos = 60,
+	MaxVivos = 85,   -- mais bichos ao mesmo tempo nas waves altas
 
 	-- Pulo reaproveitado da animacao antiga (0,83 s). Valores relativos ao tamanho.
 	Pulo = {
@@ -55,5 +55,5 @@ return {
 		SpawnSeguro = 22,     -- nao nasce a menos disso do spawn dos jogadores
 	},
 
-	Moedas = { Base = 5, PorWave = 0.5 },  -- por abate
+	Moedas = { Base = 5, PorWave = 0.25 },  -- por abate (com mais inimigos a renda ja cresce sozinha)
 }

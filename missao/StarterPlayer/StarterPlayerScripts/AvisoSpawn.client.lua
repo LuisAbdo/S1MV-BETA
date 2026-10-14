@@ -22,6 +22,9 @@ local RED = Color3.fromRGB(255, 64, 56)
 local ORANGE = Color3.fromRGB(255, 150, 50)
 local WHITE = Color3.new(1, 1, 1)
 local NOMES = { Norte = "NORTE", Sul = "SUL", Leste = "LESTE", Oeste = "OESTE" }
+-- O aviso agora e SO o feixe de luz no mundo (pedido do dono do jogo): sem faixa na tela,
+-- sem placa flutuante, sem setas na borda e sem setas no chao.
+local SO_FEIXE = true
 
 local function corePos()
 	local core = CollectionService:GetTagged("Nucleo")[1]
@@ -93,7 +96,7 @@ local function makeMarker(pos, sideName)
 	end
 	-- setas no chao (em forma de V) correndo para o Nucleo
 	local chevrons = {}
-	for i = 1, 5 do
+	for i = 1, (SO_FEIXE and 0 or 5) do
 		local holder = Instance.new("Model")
 		holder.Name = "Seta"
 		local a = neon({ Size = Vector3.new(0.9, 0.2, 4.2), Color = ORANGE, Transparency = 0.2 }, holder)
@@ -108,6 +111,7 @@ local function makeMarker(pos, sideName)
 	bb.AlwaysOnTop = true
 	bb.LightInfluence = 0
 	bb.MaxDistance = 1000
+	bb.Enabled = not SO_FEIXE
 	bb.Adornee = anchor
 	bb.Parent = anchor
 	local card = Instance.new("Frame")
@@ -231,6 +235,7 @@ bMain.RichText = true
 bMain.Parent = band
 local bandToken = 0
 local function showBand(top, main, secs)
+	if SO_FEIXE then play(SONS.AlertaSpawn) return end
 	bandToken += 1
 	local my = bandToken
 	bTop.Text = top
@@ -341,7 +346,7 @@ RunService.RenderStepped:Connect(function()
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	for i, e in ipairs(edges) do
 		local m = markers[i]
-		if not (active and strong and m) then
+		if SO_FEIXE or not (active and strong and m) then
 			e.frame.Visible = false
 		else
 			local target = m.base + Vector3.new(0, 6, 0)
@@ -374,7 +379,7 @@ RunService.RenderStepped:Connect(function()
 		local pulse = 0.5 + 0.5 * math.sin(t * 4)
 		m.beam.Transparency = strong and (0.45 + 0.25 * pulse) or 0.85
 		m.core2.Transparency = strong and (0.25 + 0.3 * pulse) or 0.8
-		m.bb.Enabled = strong
+		m.bb.Enabled = strong and not SO_FEIXE
 		m.scale.Scale = 1 + 0.06 * pulse
 		for i, r in ipairs(m.rings) do
 			local k = ((t * 0.7) + (i - 1) * 0.5) % 1
