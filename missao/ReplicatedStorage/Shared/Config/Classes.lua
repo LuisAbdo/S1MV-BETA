@@ -6,6 +6,9 @@ return {
 	EvolucaoPadrao = 3,
 	TodasLiberadasSemLobby = false,
 	TrocarSoDeDia = true,
+	-- Desenvolvedores (UserId): podem trocar de classe/evolucao a qualquer momento pelo painel DEV (F2).
+	-- O dono do jogo e quem roda no Studio ja entram automaticamente. Validado no servidor (ClassService).
+	Desenvolvedores = { 532717024 },
 	-- Teclas mostradas na tela (o slot interno continua Z/X/C/Q)
 	Teclas = { Z = "Z", X = "X", C = "T", Q = "Q" },
 	MaxAliados = 12,

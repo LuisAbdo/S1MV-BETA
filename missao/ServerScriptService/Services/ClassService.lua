@@ -512,6 +512,38 @@ local function useAbility(player, slot, aim)
 	end
 end
 
+-- DEV: troca livre de classe para testes (so desenvolvedores; tudo validado aqui) ----------
+local function isDev(player)
+	if RunService:IsStudio() then return true end
+	if game.CreatorType == Enum.CreatorType.User and player.UserId == game.CreatorId then return true end
+	for _, id in ipairs(Cfg.Desenvolvedores or {}) do
+		if player.UserId == id then return true end
+	end
+	return false
+end
+
+local function devSwitch(player, name, evo, opts)
+	if not isDev(player) then return end
+	local st = states[player]
+	if not st or typeof(name) ~= "string" or not Cfg.Classes[name] then return end
+	if typeof(evo) ~= "number" or evo ~= evo then evo = st.evo end
+	evo = math.clamp(math.floor(evo), 1, 3)
+	opts = typeof(opts) == "table" and opts or {}
+	setClass(player, name)
+	st.evo = evo
+	player:SetAttribute("Evolucao", evo)
+	player:SetAttribute("ClasseEscolhida", true)
+	restoreVisibility(player)
+	if opts.UltCheia == true then
+		st.ult = Cfg.Classes[name].Habilidades.Q.Carga or 0
+		player:SetAttribute("UltCarga", st.ult)
+	end
+	local _, root = charOf(player)
+	if root then vfx("Implantar", root.Position - Vector3.new(0, 2.5, 0), Cfg.Classes[name].Cor, 5) end
+	remotes.Aviso:FireClient(player, "[DEV] " .. Cfg.Classes[name].Nome .. " - Evolução " .. evo)
+	log("[DEV] " .. player.Name .. " -> " .. name .. " evo " .. evo)
+end
+
 -- PASSIVAS / BONUS DE TIME (loop unico) ---------------------------------
 local function teamBonuses()
 	local present = {}
@@ -542,6 +574,7 @@ function ClassService:Start()
 		-- a classe ativa vem do Laboratorio (LobbyService:SetFromLobby)
 		setClass(player, Cfg.ClassePadrao)
 		player:SetAttribute("ClasseEscolhida", false)
+		player:SetAttribute("Dev", isDev(player))
 		player.CharacterAdded:Connect(function()
 			player:SetAttribute("Oculto", false)
 			player:SetAttribute("CriticoGarantido", false)
@@ -572,6 +605,13 @@ function ClassService:Start()
 		log(player.Name .. " escolheu " .. name)
 	end)
 	remotes.UsarHabilidade.OnServerEvent:Connect(useAbility)
+	local devRemote = remotes:FindFirstChild("TrocarClasseDev")
+	if not devRemote then
+		devRemote = Instance.new("RemoteEvent")
+		devRemote.Name = "TrocarClasseDev"
+		devRemote.Parent = remotes
+	end
+	devRemote.OnServerEvent:Connect(devSwitch)
 	-- ULT carrega com abates (como o medidor do video)
 	table.insert(Enemy.OnDied, function(_, killerUserId)
 		local pl = killerUserId and Players:GetPlayerByUserId(killerUserId)
