@@ -105,7 +105,7 @@ local function groundY(pos)
 	rp.FilterType = Enum.RaycastFilterType.Exclude
 	local ignore = { folder }
 	for _, pl in ipairs(Players:GetPlayers()) do if pl.Character then table.insert(ignore, pl.Character) end end
-	for _, n in ipairs({ "Inimigos", "Aliados", "Moedas", "Efeitos" }) do
+	for _, n in ipairs({ "InimigosAtivos", "InimigosMortos", "Aliados", "Moedas", "Efeitos" }) do
 		local f = workspace:FindFirstChild(n)
 		if f then table.insert(ignore, f) end
 	end
