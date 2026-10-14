@@ -10,17 +10,23 @@ return {
 	DiaDuracao = 35,
 	TransicaoLuz = 5,
 
+	-- DIFICULDADE = QUANTIDADE: a vida dos veritys NAO cresce; cada wave traz mais bichos
+	-- orcamento = Base + PorWave*w + Quad*w^Expoente  (w10 ~32, w20 ~63, w30 ~97, w40 ~134 inimigos)
 	OrcamentoBase = 6,
-	OrcamentoPorWave = 2.4,
+	OrcamentoPorWave = 2.6,
+	OrcamentoQuad = 0.12,
+	OrcamentoExpoente = 1.6,
 	EscalaPorJogadorExtra = 0.35,  -- +35% de orcamento por jogador a mais
-	VidaPorWave = 0.05,            -- HP = base * (1 + 0.05*(wave-1))
-	VidaPorWaveInfinito = 0.12,    -- apos a 100
+	VidaPorWave = 0,               -- vida FIXA: matar continua facil em qualquer wave
+	VidaPorWaveInfinito = 0,
 
 	Grupo = { Min = 2, Max = 4 },               -- inimigos por leva (cada um num ponto aleatorio)
 	IntervaloGrupos = { Min = 1.2, Max = 2.6 },
+	-- ritmo: as levas crescem e chegam mais rapido conforme a wave
+	Ritmo = { GrupoExtraACada = 6, IntervaloMenosPorWave = 0.025, IntervaloMinimoMult = 0.3 },
 	ChanceAgrupar = 0.3,                        -- chance de nascer colado no anterior (duplas)
 
-	BonusFimWave = { Base = 50, PorWave = 10, PerdaMaxima = 0.25 },
+	BonusFimWave = { Base = 40, PorWave = 6, PerdaMaxima = 0.25 },
 	BonusCoopPorJogador = 0.10,
 
 	CheckpointACada = 10,

@@ -26,7 +26,7 @@ return {
 	},
 	-- SEQUENCIA DA RUN: Punhos -> arma equipada no TIER 1 -> TIER 2 -> TIER 3 -> TIER 4 (escolhidas no Main Lobby).
 	-- CustoTier[n] = moedas para comprar o passo n com a tecla V. (O campo Custo de cada arma nao e mais usado.)
-	CustoTier = { 0, 150, 900, 4000, 11000 },
+	CustoTier = { 0, 120, 600, 2000, 5500 },  -- T2 ~wave 4, T3 ~wave 10, T4 ~wave 16 (dividindo com defesas)
 	TiersPadrao = { "Pistola", "Rifle", "LancaChamas", "MarteloDoTrovao" },
 	TiersPermitidos = {
 		{ Pistola = true, Estilingue = true, Cano = true },

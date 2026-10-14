@@ -62,7 +62,7 @@ local function countVotes()
 end
 
 local function budgetFor(w)
-	local b = Cfg.OrcamentoBase + w * Cfg.OrcamentoPorWave
+	local b = Cfg.OrcamentoBase + w * Cfg.OrcamentoPorWave + (Cfg.OrcamentoQuad or 0) * w ^ (Cfg.OrcamentoExpoente or 1)
 	return b * (1 + Cfg.EscalaPorJogadorExtra * math.max(0, #inGame() - 1))
 end
 
@@ -125,8 +125,12 @@ local function runNight(myRun)
 	log(string.format("Wave %d: %d inimigos, vida x%.2f", wave, #plan, hpMult))
 	remaining()
 	task.wait(2)
+	-- ritmo da wave: levas maiores e mais rapidas conforme a wave sobe
+	local R = Cfg.Ritmo or {}
+	local extra = math.floor((wave - 1) / (R.GrupoExtraACada or 1e9))
+	local pace = math.max(R.IntervaloMinimoMult or 1, 1 - (R.IntervaloMenosPorWave or 0) * (wave - 1))
 	while runId == myRun and idx <= #plan do
-		local groupSize = rng:NextInteger(Cfg.Grupo.Min, Cfg.Grupo.Max)
+		local groupSize = rng:NextInteger(Cfg.Grupo.Min + extra, Cfg.Grupo.Max + extra * 2)
 		-- cada inimigo nasce num ponto aleatorio; as vezes em dupla com o anterior
 		local base = Enemy:PickSpawnPoint()
 		for _ = 1, groupSize do
@@ -140,7 +144,7 @@ local function runNight(myRun)
 			remaining()
 			task.wait(0.15)
 		end
-		if idx <= #plan then task.wait(rng:NextNumber(Cfg.IntervaloGrupos.Min, Cfg.IntervaloGrupos.Max)) end
+		if idx <= #plan then task.wait(rng:NextNumber(Cfg.IntervaloGrupos.Min, Cfg.IntervaloGrupos.Max) * pace) end
 	end
 	-- espera o ultimo inimigo cair (ou o time votar SKIP WAVE)
 	while runId == myRun and Enemy:CountAlive() > 0 do
