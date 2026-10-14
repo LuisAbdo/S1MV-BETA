@@ -40,12 +40,12 @@ return {
 	-- Sensacao do tiro (so visual, no cliente): recuo da camera em graus, tremor, tamanho do clarao
 	Sensacao = {
 		Punhos          = { Recuo = 0,   Tremor = 0.12, Clarao = 0 },
-		Estilingue      = { Recuo = 1.2, Tremor = 0.14, Clarao = 0.5, Som = 1.35 },
-		Pistola         = { Recuo = 2.6, Tremor = 0.30, Clarao = 1.5, Som = 0.85 },
+		Estilingue      = { Recuo = 1.4, Tremor = 0.22, Clarao = 0.6, Som = 1.35 },
+		Pistola         = { Recuo = 3.0, Tremor = 0.46, Clarao = 1.8, Som = 0.85 },
 		Cano            = { Recuo = 0,   Tremor = 0.20, Clarao = 0 },
-		Rifle           = { Recuo = 0.9, Tremor = 0.16, Clarao = 1.15, Som = 1.1 },
+		Rifle           = { Recuo = 1.1, Tremor = 0.26, Clarao = 1.35, Som = 1.1 },
 		Machete         = { Recuo = 0,   Tremor = 0.22, Clarao = 0 },
-		LancaChamas     = { Recuo = 0.3, Tremor = 0.10, Clarao = 0.9, Som = 0.6 },
+		LancaChamas     = { Recuo = 0.4, Tremor = 0.16, Clarao = 1.1, Som = 0.6 },
 		LaminaDeEnergia = { Recuo = 0,   Tremor = 0.26, Clarao = 0 },
 		MarteloDoTrovao = { Recuo = 0,   Tremor = 0.70, Clarao = 0 },
 		LaminaDoNucleo  = { Recuo = 0,   Tremor = 0.34, Clarao = 0 },

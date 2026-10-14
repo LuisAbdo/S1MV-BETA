@@ -320,15 +320,20 @@ local function tracer(from, to, color, width)
 end
 
 local chips -- definido mais abaixo (lascas quadradas)
+local kickFov -- definido mais abaixo (soco de FOV de cada tiro)
 
 local function muzzleFlash(at, dir, size)
 	if size <= 0 then return end
 	dir = (dir and dir.Magnitude > 0.01) and dir.Unit or Vector3.new(0, 0, -1)
 	local ball = basePart({ Shape = Enum.PartType.Ball, Color = Color3.fromRGB(255, 226, 130), Size = Vector3.one * 0.9 * size, Position = at })
-	local light = Instance.new("PointLight"); light.Range = 10 + 4 * size; light.Brightness = 4; light.Color = Color3.fromRGB(255, 200, 110); light.Parent = ball
-	TweenService:Create(ball, TweenInfo.new(0.07), { Size = Vector3.one * 1.7 * size, Transparency = 1 }):Play()
-	TweenService:Create(light, TweenInfo.new(0.07), { Brightness = 0 }):Play()
-	Debris:AddItem(ball, 0.09)
+	-- clarao que ILUMINA o ambiente (chao, paredes, inimigos perto) + facho para a frente
+	local light = Instance.new("PointLight"); light.Range = 16 + 6 * size; light.Brightness = 9; light.Color = Color3.fromRGB(255, 196, 100); light.Shadows = false; light.Parent = ball
+	local spot = Instance.new("SpotLight"); spot.Face = Enum.NormalId.Front; spot.Angle = 70; spot.Range = 26 + 6 * size; spot.Brightness = 6; spot.Color = Color3.fromRGB(255, 214, 140); spot.Parent = ball
+	ball.CFrame = CFrame.lookAt(at, at + dir)
+	TweenService:Create(ball, TweenInfo.new(0.08), { Size = Vector3.one * 1.7 * size, Transparency = 1 }):Play()
+	TweenService:Create(light, TweenInfo.new(0.11, Enum.EasingStyle.Quad), { Brightness = 0 }):Play()
+	TweenService:Create(spot, TweenInfo.new(0.09, Enum.EasingStyle.Quad), { Brightness = 0 }):Play()
+	Debris:AddItem(ball, 0.13)
 	local cone = basePart({ Color = Color3.fromRGB(255, 245, 190), Size = Vector3.new(0.35, 0.35, 1.6) * size, CFrame = CFrame.lookAt(at, at + dir) * CFrame.new(0, 0, -0.8 * size) })
 	TweenService:Create(cone, TweenInfo.new(0.06), { Transparency = 1, Size = Vector3.new(0.1, 0.1, 2.2) * size }):Play()
 	Debris:AddItem(cone, 0.08)
@@ -674,7 +679,7 @@ local function shoot(tool, w)
 			else
 				local sid, sv, sp = shotSound(w)
 				playSound(sid, sv, sp * (0.94 + rng:NextNumber() * 0.12))
-				if not w.Fogo and w.Id ~= "Estilingue" then task.delay(0.25, playSound, SOM.Estalo, SONS.Capsula.V, 0.9 + rng:NextNumber() * 0.3) end
+				-- (o "tlim" da capsula agora toca quando ela bate no chao, em EfeitosExtras)
 			end
 			-- recuo e tremor
 			recoilPitch += math.rad(feel.Recuo or 1) * (0.85 + rng:NextNumber() * 0.3)
@@ -682,6 +687,7 @@ local function shoot(tool, w)
 			armKick += math.rad((feel.Recuo or 1) * 5)
 			bloom = math.min(22, bloom + (feel.Recuo or 1) * 2.5 + 2)
 			addShake(feel.Tremor or 0.2)
+			if kickFov then kickFov(0.25 + (feel.Recuo or 1) * 0.3) end
 			if w.Tipo == "Foguete" then
 				rocket(from, aim, function() explosion(aim, w.Raio or 10) end)
 				return
@@ -1184,6 +1190,7 @@ local STREAK_TXT = { [2] = "DOUBLE KILL!", [3] = "TRIPLE KILL!", [4] = "MEGA KIL
 local streakN, streakLast, streakHide = 0, 0, nil
 
 local fovKick = 0
+kickFov = function(a) fovKick = math.min(6, fovKick + a) end
 function registerKill()
 	local now = os.clock()
 	streakN = (now - streakLast <= 2.5) and streakN + 1 or 1
