@@ -466,24 +466,112 @@ player:GetAttributeChangedSignal("NivelVida"):Connect(function()
 end)
 
 -- NUCLEO: estilhacos e brilho quando leva dano ------------------------------------------
-local core = CollectionService:GetTagged("Nucleo")[1]
-local esf = core and core:FindFirstChild("NucleoEsfera")
+-- (com StreamingEnabled o Nucleo pode ainda nao ter chegado quando o script comeca: busca na hora)
+local esf
+local function getEsf()
+	if esf and esf.Parent then return esf end
+	local core = CollectionService:GetTagged("Nucleo")[1]
+	esf = core and core:FindFirstChild("NucleoEsfera")
+	return esf
+end
 local lastCore = estado:GetAttribute("CoreVida")
 local lastCoreFx = 0
+-- IMPACTO NO ESCUDO DO NUCLEO: o inimigo bate num escudo de energia (nao direto no nucleo).
+-- Ondulacao hexagonal no ponto atingido (na cor do tier), arco eletrico ate a esfera, anel de
+-- choque virado para o atacante, faiscas, e o atacante pisca branco.
+local CoreCfgE = require(Shared.Config:WaitForChild("Core"))
+local SHIELD_R = 8.5
+local function tierCol()
+	local t = estado:GetAttribute("CoreTier") or 1
+	local v = CoreCfgE.VisualTier and CoreCfgE.VisualTier[math.clamp(t, 1, #CoreCfgE.VisualTier)]
+	if v and v.Arcoiris then return Color3.fromHSV((os.clock() * 0.12) % 1, 0.55, 1) end
+	return v and v.Cor or Color3.fromRGB(0, 229, 255)
+end
+local function attackerNearCore(center)
+	if not ativos then return nil end
+	local best, bd
+	for _, m in ipairs(ativos:GetChildren()) do
+		local b = m:FindFirstChild("Corpo")
+		if b then
+			local d = (Vector3.new(b.Position.X, 0, b.Position.Z) - Vector3.new(center.X, 0, center.Z)).Magnitude
+			if d < 22 and (not bd or d < bd) then best, bd = b, d end
+		end
+	end
+	return best
+end
+local function arc(from, to, color)
+	local pts = { from }
+	local n = 6
+	for i = 1, n - 1 do
+		local p = from:Lerp(to, i / n) + Vector3.new(rng:NextNumber(-0.9, 0.9), rng:NextNumber(-0.9, 0.9), rng:NextNumber(-0.9, 0.9))
+		table.insert(pts, p)
+	end
+	table.insert(pts, to)
+	for i = 1, #pts - 1 do
+		local a, b = pts[i], pts[i + 1]
+		local d = (b - a).Magnitude
+		local seg = part({ Material = Enum.Material.Neon, Color = color:Lerp(Color3.new(1, 1, 1), 0.5), Size = Vector3.new(0.14, 0.14, d), CFrame = CFrame.lookAt(a, b) * CFrame.new(0, 0, -d / 2) })
+		if seg then
+			TweenService:Create(seg, TweenInfo.new(0.16), { Transparency = 1, Size = Vector3.new(0.03, 0.03, d) }):Play()
+			Debris:AddItem(seg, 0.18)
+		end
+	end
+end
 estado:GetAttributeChangedSignal("CoreVida"):Connect(function()
 	local v = estado:GetAttribute("CoreVida")
-	if lastCore and v and v < lastCore and esf and os.clock() - lastCoreFx > 0.15 then
+	if lastCore and v and v < lastCore and getEsf() and os.clock() - lastCoreFx > 0.12 then
 		lastCoreFx = os.clock()
-		local pos = esf.Position
-		for _ = 1, 5 do
-			local dir = Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(-0.2, 1), rng:NextNumber(-1, 1)).Unit
-			chunk(pos + dir * esf.Size.X * 0.6, esf.Color, rng:NextNumber(0.2, 0.4), dir * rng:NextNumber(8, 14), 0.7, { neon = true, grav = 30 })
+		local center = esf.Position
+		local col = tierCol()
+		local enemy = attackerNearCore(center)
+		local dir = enemy and (enemy.Position - center) or Vector3.new(rng:NextNumber(-1, 1), 0, rng:NextNumber(-1, 1))
+		dir = Vector3.new(dir.X, math.clamp(dir.Y, -2, 3), dir.Z)
+		dir = dir.Magnitude > 0.01 and dir.Unit or Vector3.new(1, 0, 0)
+		local hit = center + dir * SHIELD_R
+		-- 1) bolha do escudo acende inteira bem fraca + ondulacao forte no ponto do impacto
+		local bubble = part({ Shape = Enum.PartType.Ball, Material = Enum.Material.ForceField, Color = col, Transparency = 0.55, Size = Vector3.one * SHIELD_R * 2, Position = center })
+		if bubble then
+			TweenService:Create(bubble, TweenInfo.new(0.35, Enum.EasingStyle.Quad), { Transparency = 1, Size = Vector3.one * SHIELD_R * 2.08 }):Play()
+			Debris:AddItem(bubble, 0.4)
 		end
-		local shell = part({ Shape = Enum.PartType.Ball, Material = Enum.Material.ForceField, Color = Color3.fromRGB(255, 80, 80),
-			Size = Vector3.one * esf.Size.X * 1.6, Position = pos, Transparency = 0.2 })
-		if shell then
-			TweenService:Create(shell, TweenInfo.new(0.25), { Size = Vector3.one * esf.Size.X * 2.4, Transparency = 1 }):Play()
-			Debris:AddItem(shell, 0.3)
+		local ripple = part({ Shape = Enum.PartType.Ball, Material = Enum.Material.ForceField, Color = col, Transparency = 0, Size = Vector3.one * 1.5, Position = hit })
+		if ripple then
+			TweenService:Create(ripple, TweenInfo.new(0.32, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), { Size = Vector3.one * 7, Transparency = 1 }):Play()
+			Debris:AddItem(ripple, 0.35)
+		end
+		-- 2) anel de choque virado para o atacante
+		local ringP = part({ Shape = Enum.PartType.Cylinder, Material = Enum.Material.Neon, Color = col, Transparency = 0.1, Size = Vector3.new(0.12, 1, 1),
+			CFrame = CFrame.lookAt(hit, hit + dir) * CFrame.Angles(0, math.rad(90), 0) })
+		if ringP then
+			TweenService:Create(ringP, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = Vector3.new(0.05, 6, 6), Transparency = 1 }):Play()
+			Debris:AddItem(ringP, 0.3)
+		end
+		-- 3) arco eletrico do impacto ate a esfera + clarao
+		arc(hit, center + dir * esf.Size.X * 0.5, col)
+		local flash = part({ Shape = Enum.PartType.Ball, Material = Enum.Material.Neon, Color = Color3.new(1, 1, 1), Transparency = 0.1, Size = Vector3.one * 0.8, Position = hit })
+		if flash then
+			local l = Instance.new("PointLight"); l.Color = col; l.Range = 14; l.Brightness = 5; l.Parent = flash
+			TweenService:Create(flash, TweenInfo.new(0.15), { Size = Vector3.one * 2.4, Transparency = 1 }):Play()
+			TweenService:Create(l, TweenInfo.new(0.2), { Brightness = 0 }):Play()
+			Debris:AddItem(flash, 0.22)
+		end
+		-- 4) faiscas espirrando para fora do escudo
+		for _ = 1, 6 do
+			local sd = (dir + Vector3.new(rng:NextNumber(-0.7, 0.7), rng:NextNumber(0, 0.9), rng:NextNumber(-0.7, 0.7))).Unit
+			chunk(hit, col:Lerp(Color3.new(1, 1, 1), rng:NextNumber(0, 0.6)), rng:NextNumber(0.12, 0.25), sd * rng:NextNumber(12, 20), 0.45, { neon = true, grav = 40 })
+		end
+		-- 5) o atacante pisca branco
+		if enemy then
+			local hl = enemy:FindFirstChild("PiscaEscudo") or Instance.new("Highlight")
+			hl.Name = "PiscaEscudo"
+			hl.FillColor = Color3.new(1, 1, 1)
+			hl.OutlineTransparency = 1
+			hl.DepthMode = Enum.HighlightDepthMode.Occluded
+			hl.FillTransparency = 0.2
+			hl.Adornee = enemy
+			hl.Parent = enemy
+			TweenService:Create(hl, TweenInfo.new(0.18), { FillTransparency = 1 }):Play()
+			Debris:AddItem(hl, 0.2)
 		end
 	end
 	lastCore = v
