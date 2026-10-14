@@ -735,7 +735,24 @@ local function separate(dt)
 	end
 end
 
+-- troca o rosto (Decal da frente) dos modelos de inimigo pelos IDs de Config/Rostos
+local function applyFaces()
+	local ok, R = pcall(require, Shared.Config:FindFirstChild("Rostos"))
+	local templates = game:GetService("ServerStorage"):FindFirstChild("Inimigos")
+	if not ok or type(R) ~= "table" or not templates then return end
+	for modelName, who in pairs(R.Modelos or {}) do
+		local id = tonumber(R[who]) or 0
+		local m = templates:FindFirstChild(modelName)
+		if id > 0 and m then
+			for _, d in ipairs(m:GetDescendants()) do
+				if d:IsA("Decal") and d.Face == Enum.NormalId.Front then d.Texture = "rbxassetid://" .. id end
+			end
+		end
+	end
+end
+
 function EnemyService:Init()
+	applyFaces()
 	Core = require(script.Parent.CoreService)
 	Economy = require(script.Parent.EconomyService)
 	Build = require(script.Parent.BuildService)

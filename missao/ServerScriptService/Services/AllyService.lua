@@ -198,6 +198,16 @@ function AllyService:SpawnLovity(owner, pos, cfg, mult)
 	body.Parent = model
 	model.PrimaryPart = body
 	dressWith(body, "Lovity", 4.8)
+	-- rosto do Lovity (Config/Rostos); 0 = mantem o rosto do modelo
+	local okR, Rostos = pcall(require, Shared.Config:FindFirstChild("Rostos"))
+	local faceId = okR and type(Rostos) == "table" and tonumber(Rostos.Lovity) or 0
+	if faceId > 0 then
+		local d = Instance.new("Decal")
+		d.Name = "Rosto"
+		d.Face = Enum.NormalId.Front
+		d.Texture = "rbxassetid://" .. faceId
+		d.Parent = body
+	end
 	local t = workspace:GetServerTimeNow()
 	model:SetAttribute("Chao", g)
 	model:SetAttribute("Raio", cfg.Raio)
