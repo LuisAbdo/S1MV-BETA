@@ -464,11 +464,16 @@ function BuildService:Validate(player, key, cf)
 	if not root or (root.Position - Vector3.new(x, root.Position.Y, z)).Magnitude > 70 then return nil, "Chegue mais perto" end
 	local rp = RaycastParams.new()
 	rp.FilterType = Enum.RaycastFilterType.Exclude
-	local ignore = { folder, Enemy:Folder(), fxFolder, workspace:FindFirstChild("Moedas") }
+	local ignore = { folder, Enemy:Folder(), fxFolder }
+	for _, n in ipairs({ "Moedas", "Recursos", "ItensChao" }) do
+		local f = workspace:FindFirstChild(n)
+		if f then table.insert(ignore, f) end
+	end
 	for _, pl in ipairs(Players:GetPlayers()) do if pl.Character then table.insert(ignore, pl.Character) end end
 	rp.FilterDescendantsInstances = ignore
-	local hit = workspace:Raycast(Vector3.new(x, Core.Position.Y + 12, z), Vector3.new(0, -30, 0), rp)
-	if not hit or math.abs(hit.Position.Y - Core.Position.Y) > 1.5 then return nil, "Terreno inválido" end
+	-- o chao agora tem relevo: aceita colinas suaves, recusa barranco
+	local hit = workspace:Raycast(Vector3.new(x, Core.Position.Y + 24, z), Vector3.new(0, -50, 0), rp)
+	if not hit or math.abs(hit.Position.Y - Core.Position.Y) > 10 or hit.Normal.Y < 0.82 then return nil, "Terreno inválido" end
 	local placeCF = CFrame.new(x, hit.Position.Y, z) * CFrame.Angles(0, yaw, 0)
 	local s = ic.Tamanho
 	local op = OverlapParams.new()

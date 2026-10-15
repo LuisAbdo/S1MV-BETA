@@ -127,7 +127,11 @@ overlap2.FilterType = Enum.RaycastFilterType.Include
 local function update()
 	if not currentKey or not ghost then return end
 	local ic = Shop.Estruturas[currentKey]
-	local ignore = { ghost, workspace.CurrentCamera, workspace:FindFirstChild("InimigosAtivos"), workspace:FindFirstChild("Moedas"), workspace:FindFirstChild("Efeitos"), workspace:FindFirstChild("Estruturas") }
+	local ignore = { ghost, workspace.CurrentCamera }
+	for _, n in ipairs({ "InimigosAtivos", "Moedas", "Efeitos", "Estruturas", "Recursos", "ItensChao" }) do
+		local f = workspace:FindFirstChild(n)
+		if f then table.insert(ignore, f) end
+	end
 	for _, pl in ipairs(Players:GetPlayers()) do if pl.Character then table.insert(ignore, pl.Character) end end
 	rayParams.FilterDescendantsInstances = ignore
 	local ray = aimRay()
@@ -145,7 +149,7 @@ local function update()
 	local d = (Vector3.new(x, 0, z) - Vector3.new(cp.X, 0, cp.Z)).Magnitude
 	if d > C.RaioConstrucao then why = "Longe demais do Núcleo"
 	elseif d < C.RaioMinimoNucleo then why = "Perto demais do Núcleo"
-	elseif math.abs(hit.Position.Y - cp.Y) > 1.5 then why = "Terreno inválido"
+	elseif math.abs(hit.Position.Y - cp.Y) > 10 or hit.Normal.Y < 0.82 then why = "Terreno inválido"
 	elseif (estado:GetAttribute("CoreTier") or 1) < ic.TierMin then why = "Exige Núcleo tier " .. ic.TierMin
 	elseif not Custos.Tem(estado, ic.Custo) then why = Custos.Falta(estado, ic.Custo)
 	else

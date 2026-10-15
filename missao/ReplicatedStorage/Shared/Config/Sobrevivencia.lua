@@ -2,24 +2,30 @@
 -- Estilo "99 Noites na Floresta": de dia coleta madeira/pedra, de noite defende o Nucleo.
 return {
 	-- MAPA POR CHUNKS ---------------------------------------------------------------
+	-- O chao e TERRENO (Terrain) com relevo suave por ruido: colinas e vales de verdade, sem
+	-- "base" quadrada. So uma clareira plana em volta do Nucleo; as arvores nascem logo depois dela.
 	Chunk = {
 		Tamanho = 48,          -- cada chunk e um quadrado de 48x48 studs
-		BaseRaio = 1,          -- chunks da base (0 = so o do Nucleo; 1 = 3x3 ao redor dele)
+		Sincrono = 1,          -- chunks ate esta distancia do Nucleo ficam prontos antes de todo mundo nascer
 		RaioGeracao = 4,       -- gera ate 4 chunks em volta de cada jogador (a neblina esconde a borda)
 		RaioInicial = 4,       -- ja nasce pronto ate 4 chunks do Nucleo (onde a horda aparece)
 		RaioMaximo = 10,       -- limite do mapa (10 chunks = ~500 studs); depois disso, neblina
 		Intervalo = 0.4,       -- segundos entre verificacoes de geracao
 		PorPasso = 3,          -- chunks gerados por verificacao (evita travadas)
-		AlturaChao = 21,       -- Y do topo do chao (igual a base)
-		VariacaoAltura = 0.8,  -- degrauzinho entre chunks (como no video)
-		-- quantidade por chunk: { min, max }
-		Arvores = { 2, 5 },
-		Rochas = { 0, 2 },
-		Decoracao = { 3, 7 },
-		ChanceClareira = 0.15, -- chunk sem arvores (campo aberto)
-		CoresGrama = {
-			Color3.fromRGB(86, 150, 62), Color3.fromRGB(78, 140, 58), Color3.fromRGB(94, 158, 66), Color3.fromRGB(82, 146, 70),
+		AlturaChao = 21,       -- Y do chao na clareira do Nucleo
+		Relevo = {
+			Altura = 22,       -- diferenca maxima de altura das colinas (studs, de pico a vale)
+			Escala = 120,      -- tamanho das colinas (maior = mais suave)
+			Clareira = 32,     -- raio plano em volta do Nucleo (sem arvores)
+			AnelFloresta = 0.55, -- densidade minima da mata logo depois da clareira (arvores ao redor do Nucleo)
+			Rampa = 80,        -- distancia em que o relevo vai de plano a altura cheia
+			SpawnLivre = 10,   -- raio plano e sem arvores em volta do spawn dos jogadores
 		},
+		-- quantidade por chunk: { min, max } (a densidade varia por "manchas" de floresta)
+		Arvores = { 2, 6 },
+		Rochas = { 0, 2 },
+		Decoracao = { 3, 6 },
+		DistanciaArvores = 7,  -- espaco minimo entre arvores
 	},
 
 	-- RECURSOS ------------------------------------------------------------------------
