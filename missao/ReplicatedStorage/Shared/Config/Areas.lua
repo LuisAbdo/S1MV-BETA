@@ -1,16 +1,11 @@
 -- Config/Areas: todos os numeros de desbloqueio de areas e nevoa.
 -- Ajuste aqui sem mexer na logica do AreaService.
 return {
-	-- Ordem de desbloqueio (tambem usada para restaurar checkpoint)
-	Ordem = { "IlhaCasa", "Rio", "Estaleiro", "Templo", "ArenaFinal" },
-
-	Areas = {
-		IlhaCasa = { Wave = 5, Nome = "Casa dos Mercenários", Placa = "CASA", Apelidos = { "casa", "ilhacasa" } },
-		Rio = { Wave = 10, Nome = "Rio da Ilha", Placa = "RIO", Apelidos = { "rio" } },
-		Estaleiro = { Wave = 20, Nome = "Estaleiro", Placa = "ESTALEIRO", Apelidos = { "estaleiro" }, Depende = "IlhaCasa" },
-		Templo = { Wave = 30, Nome = "Templo do Altar", Placa = "TEMPLO", Apelidos = { "templo" } },
-		ArenaFinal = { Wave = 100, Nome = "Arena do Verity Maligno", Apelidos = { "arena", "arenafinal" }, SemPonte = true },
-	},
+	-- As areas que abriam com as waves (Casa, Rio, Estaleiro, Templo, Arena) foram desligadas:
+	-- o mapa agora e gerado por chunks (ChunkService / Config.Sobrevivencia). Os modelos antigos
+	-- ficaram em ServerStorage.Backup_Areas_Zonas. Para religar, devolva a lista abaixo.
+	Ordem = {},
+	Areas = {},
 
 	Animacao = {
 		DuracaoPonte = 2.6,     -- segundos para a ponte inteira se montar
