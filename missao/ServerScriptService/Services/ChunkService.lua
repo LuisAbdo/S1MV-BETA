@@ -1,8 +1,10 @@
 -- [ChunkService] Mapa gerado por chunks conforme os jogadores andam (estilo 99 Noites).
--- O chao e TERRENO com relevo suave (ruido em duas escalas): colinas e vales continuos, sem
--- degraus nem "base" quadrada. So existe uma clareira plana em volta do Nucleo e do spawn; as
--- arvores nascem logo ao redor dela, em manchas de floresta mais densas ou mais abertas.
--- Tudo vem de uma semente da run (mesmo chunk = mesmo conteudo). O limite do mapa tem neblina.
+-- Tudo e feito de PECAS com textura de studs (estilo Roblox classico). O chao de cada chunk e
+-- uma grade de colunas de 6x6 studs cuja altura vem de um ruido suave, arredondado de 1 em 1
+-- stud: da colinas e vales naturais em degraus baixinhos (anda-se por cima sem pular).
+-- Colunas vizinhas da mesma altura sao fundidas numa peca so (menos pecas, mais leve).
+-- So existe uma clareira plana em volta do Nucleo e do spawn; as arvores nascem logo ao redor
+-- dela, em manchas de floresta mais densas ou mais abertas. Tudo vem de uma semente da run.
 -- Arvores/rochas ganham a tag "Recurso" (o ColetaService cuida delas).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,10 +18,9 @@ local R = C.Relevo
 
 local ChunkService = {}
 local Core
-local Terrain = workspace.Terrain
-local deco, recursos, nevoa
+local chao, recursos, nevoa
 local generated = {}   -- "i,j" -> { instancias }
-local origin = Vector3.zero   -- centro do chunk (0,0), alinhado a grade de 4 studs do Terrain
+local origin = Vector3.zero
 local corePos = Vector3.zero
 local spawnPos
 local seed, ox, oz = 1, 0, 0
@@ -27,9 +28,9 @@ local runId = 0
 local decoracoes = {}
 
 local S = C.Tamanho
-local RES = 4
-local YMIN = 0
-local YMAX = math.ceil((C.AlturaChao + R.Altura + 8) / RES) * RES
+local CELL = R.Celula or 6
+local N = math.floor(S / CELL)
+local FUNDO = C.AlturaChao - (R.Fundo or 16)   -- base das colunas (escondida embaixo)
 local function log(...) print("[ChunkService]", ...) end
 local function key(i, j) return i .. "," .. j end
 local function flatDist(a, b) return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude end
@@ -61,17 +62,29 @@ local function relief(x, z)
 	return a
 end
 
-function ChunkService:HeightAt(x, z)
+-- altura "continua" do relevo
+local function rawHeight(x, z)
 	local a = relief(x, z)
 	if a <= 0 then return C.AlturaChao end
 	local e = R.Escala
-	local n = math.noise((x + ox) / e, (z + oz) / e, 0.37) * 1.0
-		+ math.noise((x + ox) / (e * 0.4), (z + oz) / (e * 0.4), 4.13) * 0.45
-		+ math.noise((x + ox) / (e * 0.15), (z + oz) / (e * 0.15), 7.7) * 0.12
-	-- colinas sobem mais do que descem (fica natural e nao cria buracos perto da agua)
+	local n = math.noise((x + ox) / e, (z + oz) / e, 0.37)
+		+ math.noise((x + ox) / (e * 0.45), (z + oz) / (e * 0.45), 4.13) * 0.3
 	local h = n * R.Altura
-	if h < 0 then h *= 0.55 end
+	if h < 0 then h *= 0.6 end   -- colinas sobem mais do que os vales descem
 	return C.AlturaChao + h * a
+end
+
+-- celula da grade que contem (x, z): o chao e plano dentro de cada celula
+local function cellCenter(x, z)
+	local cx = origin.X - S / 2 + (math.floor((x - (origin.X - S / 2)) / CELL) + 0.5) * CELL
+	local cz = origin.Z - S / 2 + (math.floor((z - (origin.Z - S / 2)) / CELL) + 0.5) * CELL
+	return cx, cz
+end
+
+-- altura do topo do chao (em degraus de 1 stud) - usada para arvores, rochas e decoracao
+function ChunkService:HeightAt(x, z)
+	local cx, cz = cellCenter(x, z)
+	return math.floor(rawHeight(cx, cz) + 0.5)
 end
 
 -- densidade da floresta (manchas): 0 = campo aberto, 1 = mata fechada
@@ -79,58 +92,28 @@ local function forest(x, z)
 	return clamp01(math.noise((x + ox) / 85, (z + oz) / 85, 9.1) * 1.4 + 0.55)
 end
 
-local function surfaceMat(x, z)
-	local n = math.noise((x + ox) / 40, (z + oz) / 40, 2.2)
-	if n > 0.28 then return Enum.Material.LeafyGrass end
-	if n < -0.42 then return Enum.Material.Ground end
-	return Enum.Material.Grass
-end
-
-local function writeTerrain(i, j)
-	local c = ChunkService:CenterOf(i, j)
-	local x0, z0 = c.X - S / 2, c.Z - S / 2
-	local nx, ny = S / RES, (YMAX - YMIN) / RES
-	local mats, occs = table.create(nx), table.create(nx)
-	for ix = 1, nx do
-		local mx, ox2 = table.create(ny), table.create(ny)
-		for iy = 1, ny do mx[iy] = table.create(nx); ox2[iy] = table.create(nx) end
-		mats[ix], occs[ix] = mx, ox2
-		local x = x0 + (ix - 0.5) * RES
-		for iz = 1, nx do
-			local z = z0 + (iz - 0.5) * RES
-			-- o Terrain desenha a superficie meio voxel (2 studs) acima da ocupacao: compensa
-			local h = ChunkService:HeightAt(x, z) - RES / 2
-			local top = surfaceMat(x, z)
-			for iy = 1, ny do
-				local y0 = YMIN + (iy - 1) * RES
-				local occ = clamp01((h - y0) / RES)
-				local m = Enum.Material.Air
-				if occ > 0 then
-					local depth = h - y0
-					if depth <= RES * 1.25 then m = top
-					elseif depth <= RES * 2.5 then m = Enum.Material.Ground
-					else m = Enum.Material.Rock end
-				end
-				mx[iy][iz] = m
-				ox2[iy][iz] = occ
-			end
-		end
-	end
-	local region = Region3.new(Vector3.new(x0, YMIN, z0), Vector3.new(x0 + S, YMAX, z0 + S))
-	Terrain:WriteVoxels(region, RES, mats, occs)
+-- cor do chao: mais clara nas partes altas, mais escura nos vales (como no video)
+local GRAMA_BAIXA = Color3.fromRGB(64, 128, 52)
+local GRAMA_ALTA = Color3.fromRGB(110, 170, 70)
+local function groundColor(h, x, z)
+	local u = clamp01((h - (C.AlturaChao - R.Altura * 0.4)) / (R.Altura * 1.2))
+	local c = GRAMA_BAIXA:Lerp(GRAMA_ALTA, u)
+	local k = 1 + math.noise((x + ox) / 30, (z + oz) / 30, 5.5) * 0.12
+	return Color3.new(math.clamp(c.R * k, 0, 1), math.clamp(c.G * k, 0, 1), math.clamp(c.B * k, 0, 1))
 end
 
 -- PECAS ----------------------------------------------------------------------------------
-local function part(parent, size, cf, color, material, o)
+-- tudo com studs em cima (estilo classico)
+local function part(parent, size, cf, color, o)
 	o = o or {}
 	local p = Instance.new("Part")
 	p.Anchored = true
 	p.Size = size
 	p.CFrame = cf
 	p.Color = color
-	p.Material = material or Enum.Material.Plastic
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = Enum.Material.Plastic
+	p.TopSurface = Enum.SurfaceType.Studs
+	p.BottomSurface = Enum.SurfaceType.Inlet
 	p.CanCollide = o.collide ~= false
 	p.CanTouch = false
 	p.CanQuery = o.query ~= false
@@ -140,26 +123,54 @@ local function part(parent, size, cf, color, material, o)
 	return p
 end
 
+local function writeGround(i, j, list)
+	local c = ChunkService:CenterOf(i, j)
+	local x0, z0 = c.X - S / 2, c.Z - S / 2
+	for iz = 1, N do
+		local z = z0 + (iz - 0.5) * CELL
+		-- funde colunas seguidas da mesma altura numa peca so
+		local runStart, runH = 1, nil
+		local hs = table.create(N)
+		for ix = 1, N do
+			local x = x0 + (ix - 0.5) * CELL
+			hs[ix] = math.floor(rawHeight(x, z) + 0.5)
+		end
+		for ix = 1, N + 1 do
+			local h = hs[ix]
+			if ix == 1 then
+				runH = h
+			elseif h ~= runH then
+				local w = (ix - runStart) * CELL
+				local xc = x0 + (runStart - 1) * CELL + w / 2
+				local top = runH
+				local p = part(chao, Vector3.new(w, top - FUNDO, CELL), CFrame.new(xc, (top + FUNDO) / 2, z), groundColor(top, xc, z), { name = "Chao" })
+				table.insert(list, p)
+				runStart, runH = ix, h
+			end
+		end
+	end
+end
+
 local function shade(c, rng, amt)
 	local k = 1 + rng:NextNumber(-amt, amt)
 	return Color3.new(math.clamp(c.R * k, 0, 1), math.clamp(c.G * k, 0, 1), math.clamp(c.B * k, 0, 1))
 end
 
--- arvore "carvalho" blocada (copa quadrada como no video); o tronco afunda 1.5 stud no chao
+-- arvore "carvalho" blocada (copa quadrada como no video)
 local function buildArvore(pos, rng)
 	local m = Instance.new("Model")
 	m.Name = "Arvore"
 	local h = rng:NextNumber(10, 16)
-	local w = rng:NextNumber(2.2, 3)
-	local rot = CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
-	local base = CFrame.new(pos - Vector3.new(0, 1.5, 0)) * rot
-	local tronco = part(m, Vector3.new(w, h + 1.5, w), base * CFrame.new(0, (h + 1.5) / 2, 0), shade(Color3.fromRGB(112, 76, 46), rng, 0.1), Enum.Material.Wood, { name = "Tronco" })
-	local leaf = shade(Color3.fromRGB(62, 118, 50), rng, 0.14)
-	local cw = rng:NextNumber(9, 13)
-	part(m, Vector3.new(cw, rng:NextNumber(6, 8), cw), base * CFrame.new(0, h + 3.5, 0), leaf, Enum.Material.Grass, { name = "Folhas", collide = false })
+	local w = math.floor(rng:NextNumber(2, 3.5) + 0.5)
+	local rot = CFrame.Angles(0, math.rad(90 * rng:NextInteger(0, 3)), 0)
+	local base = CFrame.new(pos) * rot
+	local tronco = part(m, Vector3.new(w, h, w), base * CFrame.new(0, h / 2, 0), shade(Color3.fromRGB(112, 76, 46), rng, 0.1), { name = "Tronco" })
+	local leaf = shade(Color3.fromRGB(62, 128, 50), rng, 0.14)
+	local cw = math.floor(rng:NextNumber(9, 13) + 0.5)
+	part(m, Vector3.new(cw, math.floor(rng:NextNumber(6, 8) + 0.5), cw), base * CFrame.new(0, h + 2, 0), leaf, { name = "Folhas", collide = false })
 	if rng:NextNumber() < 0.7 then
-		local c2 = cw * rng:NextNumber(0.55, 0.75)
-		part(m, Vector3.new(c2, 4, c2), base * CFrame.new(rng:NextNumber(-2, 2), h + 8, rng:NextNumber(-2, 2)), shade(leaf, rng, 0.08), Enum.Material.Grass, { name = "Folhas", collide = false })
+		local c2 = math.floor(cw * rng:NextNumber(0.55, 0.75) + 0.5)
+		part(m, Vector3.new(c2, 4, c2), base * CFrame.new(rng:NextInteger(-2, 2), h + 7, rng:NextInteger(-2, 2)), shade(leaf, rng, 0.08), { name = "Folhas", collide = false })
 	end
 	m.PrimaryPart = tronco
 	return m
@@ -169,13 +180,13 @@ local function buildPinheiro(pos, rng)
 	local m = Instance.new("Model")
 	m.Name = "Pinheiro"
 	local h = rng:NextNumber(13, 19)
-	local rot = CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
-	local base = CFrame.new(pos - Vector3.new(0, 1.5, 0)) * rot
-	local tronco = part(m, Vector3.new(1.7, h + 1.5, 1.7), base * CFrame.new(0, (h + 1.5) / 2, 0), shade(Color3.fromRGB(100, 68, 42), rng, 0.1), Enum.Material.Wood, { name = "Tronco" })
-	local leaf = shade(Color3.fromRGB(42, 96, 50), rng, 0.14)
-	local camadas = { { 8.5, 5, 0.5 }, { 6.5, 5, 0.72 }, { 4, 4.5, 0.92 }, { 2, 2.5, 1.06 } }
+	local rot = CFrame.Angles(0, math.rad(90 * rng:NextInteger(0, 3)), 0)
+	local base = CFrame.new(pos) * rot
+	local tronco = part(m, Vector3.new(2, h, 2), base * CFrame.new(0, h / 2, 0), shade(Color3.fromRGB(100, 68, 42), rng, 0.1), { name = "Tronco" })
+	local leaf = shade(Color3.fromRGB(40, 100, 52), rng, 0.14)
+	local camadas = { { 9, 5, 0.42 }, { 7, 5, 0.66 }, { 4, 4, 0.88 }, { 2, 3, 1.02 } }
 	for _, c in ipairs(camadas) do
-		part(m, Vector3.new(c[1], c[2], c[1]), base * CFrame.new(0, h * c[3] + 1.5, 0) * CFrame.Angles(0, math.rad(rng:NextNumber(-12, 12)), 0), leaf, Enum.Material.Grass, { name = "Folhas", collide = false })
+		part(m, Vector3.new(c[1], c[2], c[1]), base * CFrame.new(0, h * c[3], 0), leaf, { name = "Folhas", collide = false })
 	end
 	m.PrimaryPart = tronco
 	return m
@@ -184,15 +195,15 @@ end
 local function buildRocha(pos, rng)
 	local m = Instance.new("Model")
 	m.Name = "Rocha"
-	local cor = shade(Color3.fromRGB(104, 104, 112), rng, 0.1)
-	local big = Vector3.new(rng:NextNumber(4, 6.5), rng:NextNumber(2.5, 4.5), rng:NextNumber(3.5, 5.5))
-	local rot = CFrame.Angles(rng:NextNumber(-0.12, 0.12), rng:NextNumber(0, math.pi * 2), rng:NextNumber(-0.12, 0.12))
-	local main = part(m, big, CFrame.new(pos + Vector3.new(0, big.Y / 2 - 0.8, 0)) * rot, cor, Enum.Material.Slate, { name = "Pedra" })
+	local cor = shade(Color3.fromRGB(150, 150, 155), rng, 0.1)
+	local big = Vector3.new(rng:NextInteger(4, 6), rng:NextInteger(3, 4), rng:NextInteger(4, 5))
+	local rot = CFrame.Angles(0, math.rad(90 * rng:NextInteger(0, 3)), 0)
+	local main = part(m, big, CFrame.new(pos + Vector3.new(0, big.Y / 2, 0)) * rot, cor, { name = "Pedra" })
 	for _ = 1, rng:NextInteger(1, 3) do
-		local s = Vector3.new(rng:NextNumber(1.6, 3), rng:NextNumber(1.2, 2.4), rng:NextNumber(1.6, 3))
-		local off = Vector3.new(rng:NextNumber(-1, 1) * big.X * 0.55, 0, rng:NextNumber(-1, 1) * big.Z * 0.55)
+		local s = Vector3.new(rng:NextInteger(2, 3), rng:NextInteger(1, 2), rng:NextInteger(2, 3))
+		local off = Vector3.new(rng:NextInteger(-2, 2), 0, rng:NextInteger(-2, 2))
 		local y = ChunkService:HeightAt(pos.X + off.X, pos.Z + off.Z)
-		part(m, s, CFrame.new(pos.X + off.X, y + s.Y / 2 - 0.5, pos.Z + off.Z) * CFrame.Angles(rng:NextNumber(-0.3, 0.3), rng:NextNumber(0, 6), rng:NextNumber(-0.3, 0.3)), shade(cor, rng, 0.08), Enum.Material.Slate, { name = "Pedra" })
+		part(m, s, CFrame.new(pos.X + off.X, y + s.Y / 2, pos.Z + off.Z) * CFrame.Angles(0, math.rad(rng:NextNumber(-25, 25)), 0), shade(cor, rng, 0.1), { name = "Pedra" })
 	end
 	m.PrimaryPart = main
 	return m
@@ -228,13 +239,15 @@ local function generate(i, j)
 	local rng = chunkRng(i, j)
 	local list = {}
 	generated[k] = list
-	writeTerrain(i, j)
+	writeGround(i, j, list)
 	local center = ChunkService:CenterOf(i, j)
 	local used = {}
+	-- pontos no meio de uma celula (assim tronco e pedra ficam em cima de um degrau so)
 	local function spot(margin, spacing, avoidClear)
 		for _ = 1, 14 do
 			local x = center.X + rng:NextNumber(-S / 2 + margin, S / 2 - margin)
 			local z = center.Z + rng:NextNumber(-S / 2 + margin, S / 2 - margin)
+			x, z = cellCenter(x, z)
 			local p = Vector3.new(x, 0, z)
 			local ok = (not avoidClear) or freeSpot(p)
 			if ok then
@@ -255,7 +268,7 @@ local function generate(i, j)
 	if dCore < R.Clareira + 60 then dens = math.max(dens, R.AnelFloresta or 0.55) end
 	local nArv = math.floor(C.Arvores[1] + (C.Arvores[2] - C.Arvores[1]) * dens + rng:NextNumber(-0.5, 0.99))
 	for _ = 1, math.max(0, nArv) do
-		local p = spot(2, C.DistanciaArvores, true)
+		local p = spot(3, C.DistanciaArvores, true)
 		if p then
 			local kind = rng:NextNumber() < 0.45 and "Pinheiro" or "Arvore"
 			local m = BUILDERS[kind](p, rng)
@@ -276,8 +289,8 @@ local function generate(i, j)
 			local p = spot(1, 3, false)
 			if p and flatDist(p, corePos) > 12 then
 				local d = decoracoes[rng:NextInteger(1, #decoracoes)]:Clone()
-				d:PivotTo(CFrame.new(p - Vector3.new(0, 0.2, 0)) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0))
-				d.Parent = deco
+				d:PivotTo(CFrame.new(p) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0))
+				d.Parent = chao
 				table.insert(list, d)
 			end
 		end
@@ -290,9 +303,7 @@ local function clearAll()
 	end
 	generated = {}
 	recursos:ClearAllChildren()
-	deco:ClearAllChildren()
-	local half = (C.RaioMaximo + 1) * S
-	Terrain:FillBlock(CFrame.new(origin.X, (YMIN + YMAX) / 2, origin.Z), Vector3.new(half * 2, YMAX - YMIN + 8, half * 2), Enum.Material.Air)
+	chao:ClearAllChildren()
 end
 
 -- gera em volta de um ponto, do mais perto para o mais longe
@@ -320,7 +331,7 @@ function ChunkService:GenerateAround(pos, radius, budget)
 	return n
 end
 
--- PAREDE DE NEBLINA NO LIMITE ----------------------------------------------------------------
+-- PAREDE DE NEBLINA NO LIMITE (branca, junto com a neblina do Atmosphere no cliente) ------------
 local function buildFogWall()
 	nevoa:ClearAllChildren()
 	local half = (C.RaioMaximo + 0.5) * S
@@ -336,19 +347,19 @@ local function buildFogWall()
 			local off = sd[2] and Vector3.new(along, 0, 0) or Vector3.new(0, 0, along)
 			local pos = Vector3.new(origin.X, C.AlturaChao + 30, origin.Z) + sd[1] + off
 			local size = sd[2] and Vector3.new(seg, 80, 4) or Vector3.new(4, 80, seg)
-			local wall = part(nevoa, size, CFrame.new(pos), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic, { name = "ParedeNevoa", shadow = false })
+			local wall = part(nevoa, size, CFrame.new(pos), Color3.new(1, 1, 1), { name = "ParedeNevoa", shadow = false })
 			wall.Transparency = 1
 			local e = Instance.new("ParticleEmitter")
 			e.Texture = "rbxasset://textures/particles/smoke_main.dds"
-			e.Color = ColorSequence.new(Color3.fromRGB(245, 248, 255))
-			e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 9), NumberSequenceKeypoint.new(1, 18) })
-			e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.3), NumberSequenceKeypoint.new(0.75, 0.4), NumberSequenceKeypoint.new(1, 1) })
+			e.Color = ColorSequence.new(Color3.fromRGB(250, 251, 255))
+			e.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 10), NumberSequenceKeypoint.new(1, 20) })
+			e.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.3, 0.2), NumberSequenceKeypoint.new(0.75, 0.3), NumberSequenceKeypoint.new(1, 1) })
 			e.Lifetime = NumberRange.new(5, 8)
-			e.Rate = 6
+			e.Rate = 8
 			e.Speed = NumberRange.new(0.4, 1.4)
 			e.SpreadAngle = Vector2.new(180, 180)
 			e.Shape = Enum.ParticleEmitterShape.Box
-			e.LightInfluence = 0.6
+			e.LightInfluence = 0.3
 			e.Parent = wall
 		end
 	end
@@ -369,10 +380,8 @@ function ChunkService:ResetRun()
 	-- o centro fica pronto na hora (ninguem nasce caindo na agua)
 	self:GenerateAround(origin, C.Sincrono)
 	task.spawn(function()
-		local total = 0
 		while runId == my do
 			local n = self:GenerateAround(origin, C.RaioInicial, 4)
-			total += n
 			if n == 0 then break end
 			task.wait()
 		end
@@ -382,9 +391,9 @@ end
 
 function ChunkService:Init()
 	Core = require(script.Parent.CoreService)
-	deco = workspace:FindFirstChild("Chunks") or Instance.new("Folder")
-	deco.Name = "Chunks"
-	deco.Parent = workspace
+	chao = workspace:FindFirstChild("Chunks") or Instance.new("Folder")
+	chao.Name = "Chunks"
+	chao.Parent = workspace
 	recursos = workspace:FindFirstChild("Recursos") or Instance.new("Folder")
 	recursos.Name = "Recursos"
 	recursos.Parent = workspace
@@ -403,16 +412,12 @@ function ChunkService:Init()
 			end
 		end
 	end
-	-- cores da grama do terreno (mais vivas, combinando com as arvores)
-	Terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(88, 148, 60))
-	Terrain:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(70, 128, 52))
-	Terrain:SetMaterialColor(Enum.Material.Ground, Color3.fromRGB(110, 88, 62))
 	corePos = Core.Position
-	origin = Vector3.new(math.floor(corePos.X / RES + 0.5) * RES, C.AlturaChao, math.floor(corePos.Z / RES + 0.5) * RES)
+	origin = Vector3.new(corePos.X, C.AlturaChao, corePos.Z)
 	local sp = workspace:FindFirstChild("SpawnJogadores", true)
 	spawnPos = sp and sp.Position or nil
 	buildFogWall()
-	-- terreno do centro pronto antes de qualquer jogador nascer
+	-- chao do centro pronto antes de qualquer jogador nascer
 	self:ResetRun()
 end
 
@@ -430,7 +435,7 @@ function ChunkService:Start()
 			end
 		end
 	end)
-	log("Pronto. Chunk " .. S .. " studs, limite " .. C.RaioMaximo .. " chunks, relevo " .. R.Altura .. " studs")
+	log("Pronto. Chunk " .. S .. " studs, celula " .. CELL .. ", relevo " .. R.Altura .. " studs")
 end
 
 return ChunkService

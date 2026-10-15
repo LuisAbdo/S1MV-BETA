@@ -18,11 +18,23 @@ return {
 	},
 
 	-- Nevoa (Atmosphere no cliente). Indice = numero de areas abertas + 1.
+	-- Neblina BRANCA e densa: o jogador nunca ve o fim do mapa nem os chunks sendo gerados.
 	Nevoa = {
-		Densidade = { 0.6, 0.5, 0.42, 0.36, 0.3 },
-		Haze = { 2.6, 2.2, 1.8, 1.5, 1.2 },
-		Cor = Color3.fromRGB(215, 228, 236),
-		Deslocamento = 0.05,
+		Densidade = { 0.74, 0.5, 0.42, 0.36, 0.3 },
+		Haze = { 3.2, 2.2, 1.8, 1.5, 1.2 },
+		Cor = Color3.fromRGB(246, 248, 252),
+		Decaimento = Color3.fromRGB(240, 243, 248),
+		Deslocamento = 0,
+		-- desfoque do fundo (DepthOfField): o que esta longe fica borrado
+		Desfoque = { Distancia = 55, Raio = 45, Intensidade = 0.45 },
+		-- neblina classica (Lighting.Fog): parede branca garantida a partir de Fim studs.
+		-- Quando ligada, o Atmosphere sai (o Roblox ignora o Fog se existir Atmosphere).
+		Classica = {
+			Inicio = 30,
+			Fim = 170,
+			CorDia = Color3.fromRGB(246, 248, 252),
+			CorNoite = Color3.fromRGB(205, 210, 222), -- branco mais apagado a noite
+		},
 		TempoTransicao = 2.5,
 		-- Wave 100: a nevoa volta, vermelha
 		DensidadeArena = 0.55,

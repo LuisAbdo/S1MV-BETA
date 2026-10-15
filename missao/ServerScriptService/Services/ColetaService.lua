@@ -85,9 +85,9 @@ local function makeItem(kind, cf)
 	p.Size = info.Tamanho
 	p.CFrame = cf
 	p.Color = info.Cor
-	p.Material = kind == "Madeira" and Enum.Material.Wood or Enum.Material.Slate
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = Enum.Material.Plastic
+	p.TopSurface = Enum.SurfaceType.Studs
+	p.BottomSurface = Enum.SurfaceType.Inlet
 	p.CollisionGroup = "ItensChao"
 	p.CustomPhysicalProperties = PhysicalProperties.new(0.6, 0.6, 0.1)
 	p:SetAttribute("Item", kind)
@@ -101,7 +101,7 @@ local function makeItem(kind, cf)
 			ring.Size = Vector3.new(0.12, info.Tamanho.Y * 0.84, info.Tamanho.Z * 0.84)
 			ring.CFrame = cf * CFrame.new(s * (info.Tamanho.X / 2 + 0.03), 0, 0)
 			ring.Color = Color3.fromRGB(205, 160, 105)
-			ring.Material = Enum.Material.Wood
+			ring.Material = Enum.Material.Plastic
 			ring.CanCollide = false; ring.CanQuery = false; ring.CanTouch = false; ring.Massless = true
 			ring.CollisionGroup = "ItensChao"
 			ring.Parent = p

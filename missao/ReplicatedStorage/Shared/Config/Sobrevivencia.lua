@@ -2,8 +2,9 @@
 -- Estilo "99 Noites na Floresta": de dia coleta madeira/pedra, de noite defende o Nucleo.
 return {
 	-- MAPA POR CHUNKS ---------------------------------------------------------------
-	-- O chao e TERRENO (Terrain) com relevo suave por ruido: colinas e vales de verdade, sem
-	-- "base" quadrada. So uma clareira plana em volta do Nucleo; as arvores nascem logo depois dela.
+	-- O chao e feito de PECAS com studs: colunas de 6x6 studs com altura por ruido suave,
+	-- em degraus de 1 stud (colinas naturais). So uma clareira plana em volta do Nucleo;
+	-- as arvores nascem logo depois dela.
 	Chunk = {
 		Tamanho = 48,          -- cada chunk e um quadrado de 48x48 studs
 		Sincrono = 1,          -- chunks ate esta distancia do Nucleo ficam prontos antes de todo mundo nascer
@@ -14,8 +15,10 @@ return {
 		PorPasso = 3,          -- chunks gerados por verificacao (evita travadas)
 		AlturaChao = 21,       -- Y do chao na clareira do Nucleo
 		Relevo = {
-			Altura = 22,       -- diferenca maxima de altura das colinas (studs, de pico a vale)
-			Escala = 120,      -- tamanho das colinas (maior = mais suave)
+			Altura = 20,       -- diferenca maxima de altura das colinas (studs)
+			Escala = 190,      -- tamanho das colinas (maior = mais suave, degraus mais baixos)
+			Celula = 6,        -- tamanho de cada coluna do chao (studs)
+			Fundo = 16,        -- quanto as colunas descem abaixo do chao da clareira
 			Clareira = 32,     -- raio plano em volta do Nucleo (sem arvores)
 			AnelFloresta = 0.55, -- densidade minima da mata logo depois da clareira (arvores ao redor do Nucleo)
 			Rampa = 80,        -- distancia em que o relevo vai de plano a altura cheia

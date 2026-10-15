@@ -289,7 +289,7 @@ local function flyIntoCore(entry, center, i, n, dur)
 	local from = entry.from
 	local g = part({
 		size = info.Tamanho, cf = CFrame.new(from), color = info.Cor,
-		material = kind == "Madeira" and Enum.Material.Wood or Enum.Material.Slate,
+		material = Enum.Material.Plastic,
 		shape = kind == "Madeira" and Enum.PartType.Cylinder or nil,
 	})
 	local a0 = Instance.new("Attachment"); a0.Position = Vector3.new(0, 0.5, 0); a0.Parent = g
@@ -388,7 +388,6 @@ remotes.Efeito.OnClientEvent:Connect(function(kind, a, b, c, d, e)
 			burst(pos, Color3.fromRGB(205, 160, 100), 7, 13, 0.3, Enum.Material.Wood, 0.7)
 		end
 		if typeof(model) == "Instance" and model.Parent then
-			showBar(model, ratio or 0, rk)
 			if typeof(who) == "Instance" and who.Character and who.Character:FindFirstChild("HumanoidRootPart") then wobble(model, who.Character.HumanoidRootPart.Position) end
 		end
 		if who == player then addShake(0.12) end
