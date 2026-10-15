@@ -11,6 +11,7 @@ local player = Players.LocalPlayer
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Shop = require(Shared:WaitForChild("Config"):WaitForChild("Shop"))
 local estado = Shared:WaitForChild("EstadoJogo")
+local Custos = require(Shared:WaitForChild("Custos"))
 local remotes = Shared:WaitForChild("Remotes")
 local C = Shop.Construcao
 local SONS = require(Shared.Config:WaitForChild("Sons"))
@@ -146,7 +147,7 @@ local function update()
 	elseif d < C.RaioMinimoNucleo then why = "Perto demais do Núcleo"
 	elseif math.abs(hit.Position.Y - cp.Y) > 1.5 then why = "Terreno inválido"
 	elseif (estado:GetAttribute("CoreTier") or 1) < ic.TierMin then why = "Exige Núcleo tier " .. ic.TierMin
-	elseif (player:GetAttribute("Moedas") or 0) < ic.Custo then why = "Moedas insuficientes"
+	elseif not Custos.Tem(estado, ic.Custo) then why = Custos.Falta(estado, ic.Custo)
 	else
 		overlap.FilterDescendantsInstances = { ghost, workspace:FindFirstChild("InimigosAtivos"), workspace:FindFirstChild("Moedas"), workspace:FindFirstChild("Efeitos") }
 		local boxCF = cf * CFrame.new(0, s.Y / 2 + 0.3, 0)
@@ -160,7 +161,7 @@ local function update()
 	ghostBox.Color = valid and Color3.fromRGB(80, 255, 110) or Color3.fromRGB(255, 70, 70)
 	ghostBox.SelectionBox.Color3 = ghostBox.Color
 	if hint then
-		hint.Text = ic.Nome .. " · " .. ic.Custo .. " moedas" .. (why and ("  —  " .. why) or "") .. "\n" ..
+		hint.Text = ic.Nome .. " · " .. Custos.Texto(ic.Custo) .. (why and ("  —  " .. why) or "") .. "\n" ..
 			(UserInputService.TouchEnabled and not UserInputService.MouseEnabled and "COLOCAR · GIRAR · SAIR (botões)" or "Clique: colocar  ·  R: girar  ·  Q: sair")
 		hint.TextColor3 = valid and Color3.new(1, 1, 1) or Color3.fromRGB(255, 160, 160)
 	end

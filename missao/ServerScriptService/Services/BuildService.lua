@@ -10,6 +10,7 @@ local Debris = game:GetService("Debris")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Shop = require(Shared.Config.Shop)
 local SONS = require(Shared.Config.Sons)
+local Custos = require(Shared.Custos)
 local C = Shop.Construcao
 
 -- SONS (posicionais) -------------------------------------------------------
@@ -36,7 +37,7 @@ end
 local TIRO = { TorretaBasica = SONS.TorretaTiro, TorretaGelo = SONS.TorretaGelo, TorretaPesada = SONS.TorretaPesada }
 
 local BuildService = {}
-local remotes, estado, Core, Enemy, Economy
+local remotes, estado, Core, Enemy, Economy, Coleta
 local folder, fxFolder
 local structures = {}   -- model -> data
 local counts = {}       -- userId -> { total = n, [key] = n }
@@ -149,6 +150,33 @@ builders.Muro = function(model, cf, s)
 	end
 	P(model, cf, Vector3.new(10.4, 0.6, 3.4), CFrame.new(0, 7.1, 0), STONE2)
 end
+-- portao: dois pilares de pedra e duas folhas de madeira que abrem quando um jogador chega perto
+builders.Portao = function(model, cf, s)
+	for _, side in ipairs({ -1, 1 }) do
+		for r = 0, 3 do
+			P(model, cf, Vector3.new(1.9, 1.9, 3.2), CFrame.new(side * 5.05, 0.95 + r * 1.9, 0), (r % 2 == 0) and STONE or STONE2)
+		end
+		P(model, cf, Vector3.new(2.3, 0.6, 3.5), CFrame.new(side * 5.05, 7.9, 0), STONE2)
+	end
+	P(model, cf, Vector3.new(12.4, 1, 3.4), CFrame.new(0, 7.6, 0), STONE2)
+	P(model, cf, Vector3.new(8, 0.5, 3), CFrame.new(0, 6.85, 0), STONE)
+	for _, side in ipairs({ -1, 1 }) do
+		local door = Instance.new("Model")
+		door.Name = side < 0 and "PortaE" or "PortaD"
+		door.Parent = model
+		-- dobradica no pilar; a folha vai ate o meio
+		local hinge = cf * CFrame.new(side * 4.05, 0, 0)
+		local panel = P(model, hinge, Vector3.new(4, 6.4, 0.5), CFrame.new(-side * 2, 3.3, 0), WOOD, { parent = door, name = "Folha" })
+		for _, y in ipairs({ 1.3, 5.3 }) do
+			P(model, hinge, Vector3.new(4.1, 0.45, 0.65), CFrame.new(-side * 2, y, 0), WOODD, { parent = door })
+		end
+		P(model, hinge, Vector3.new(0.4, 0.4, 0.8), CFrame.new(-side * 3.4, 3.3, 0), METAL2, { parent = door })
+		door.PrimaryPart = panel
+		door:SetAttribute("Lado", side)
+		door:SetAttribute("Dobradica", hinge)
+	end
+end
+
 builders.Mina = function(model, cf, s)
 	P(model, cf, Vector3.new(0.6, 3, 3), CFrame.new(0, 0.3, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(45, 45, 50), { shape = Enum.PartType.Cylinder })
 	P(model, cf, Vector3.new(0.3, 1.8, 1.8), CFrame.new(0, 0.7, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(90, 90, 95), { shape = Enum.PartType.Cylinder })
@@ -216,9 +244,8 @@ local function refresh(data)
 	data.barGui.Enabled = r < 1
 	data.model:SetAttribute("Vida", math.floor(data.hp + 0.5))
 	if data.repairPrompt then
-		local cost = math.ceil((data.maxHp - data.hp) * C.CustoReparoPorVida * (1 - (data.model:GetAttribute("DescontoReparo") or 0)))
 		data.repairPrompt.Enabled = false
-		data.repairPrompt.ActionText = "Reparar (" .. cost .. ")"
+		data.repairPrompt.ActionText = "Reparar"
 	end
 end
 
@@ -253,7 +280,8 @@ function BuildService:Create(key, cf, ownerId, hpRatio)
 	main.Size = s
 	main.CFrame = cf * CFrame.new(0, s.Y / 2, 0)
 	main.Transparency = 1
-	main.CanCollide = ic.Tipo ~= "Mina"
+	-- portao: jogadores atravessam (sem colisao), mas os veritys batem nele (raycast de obstaculo)
+	main.CanCollide = ic.Tipo ~= "Mina" and not ic.Portao
 	main.CanQuery = true
 	main.CanTouch = false
 	main.Parent = model
@@ -268,7 +296,7 @@ function BuildService:Create(key, cf, ownerId, hpRatio)
 	local data = {
 		key = key, cfg = ic, model = model, main = main, owner = ownerId, cf = cf,
 		maxHp = ic.Vida, hp = ic.Vida * (hpRatio or 1), last = 0, head = head, muzzle = muzzle,
-		accent = accent, drone = drone, droneT = math.random() * 10,
+		accent = accent, drone = drone, droneT = math.random() * 10, born = os.clock(),
 	}
 	healthBar(data)
 
@@ -296,7 +324,7 @@ function BuildService:Create(key, cf, ownerId, hpRatio)
 	local sp = Instance.new("ProximityPrompt")
 	sp.Name = "Vender"
 	sp.ObjectText = ic.Nome
-	sp.ActionText = "Vender (+" .. math.floor(ic.Custo * C.RetornoVenda) .. ")"
+	sp.ActionText = "Vender (+" .. Custos.Texto(ic.Custo, C.RetornoVenda) .. ")"
 	sp.KeyboardKeyCode = Enum.KeyCode.H
 	sp.GamepadKeyCode = Enum.KeyCode.ButtonY
 	sp.HoldDuration = 0.8
@@ -392,12 +420,15 @@ end
 function BuildService:Repair(player, model)
 	local data = structures[model]
 	if not data or data.hp >= data.maxHp then return end
-	local cost = math.ceil((data.maxHp - data.hp) * C.CustoReparoPorVida * (1 - (data.model:GetAttribute("DescontoReparo") or 0)))
-	if Economy:Spend(player, cost) then
+	-- reparo custa materiais do estoque, proporcional ao dano (B.A.S.E. do Engenheiro da desconto)
+	local frac = (1 - data.hp / data.maxHp) * (C.ReparoFracao or 0.5) * (1 - (data.model:GetAttribute("DescontoReparo") or 0))
+	local cost = {}
+	for k, v in pairs(Custos.Norm(data.cfg.Custo)) do cost[k] = math.ceil(v * frac) end
+	if Coleta:Spend(cost) then
 		data.hp = data.maxHp
 		refresh(data)
 	else
-		remotes.Aviso:FireClient(player, "Moedas insuficientes para reparar")
+		remotes.Aviso:FireClient(player, (Custos.Falta(estado, cost) or "Materiais insuficientes") .. " para reparar")
 	end
 end
 
@@ -408,8 +439,7 @@ function BuildService:Sell(player, model)
 		remotes.Aviso:FireClient(player, "Só quem construiu pode vender")
 		return
 	end
-	local refund = math.floor(data.cfg.Custo * C.RetornoVenda * (data.hp / data.maxHp) + 0.5)
-	Economy:Add(player, refund)
+	Coleta:Refund(data.cfg.Custo, C.RetornoVenda * (data.hp / data.maxHp))
 	soundAt(data.main.Position, SONS.Vender)
 	self:Remove(model, true)
 end
@@ -579,6 +609,7 @@ function BuildService:Init()
 	Core = require(script.Parent.CoreService)
 	Enemy = require(script.Parent.EnemyService)
 	Economy = require(script.Parent.EconomyService)
+	Coleta = require(script.Parent.ColetaService)
 	folder = workspace:FindFirstChild("Estruturas")
 	if not folder then
 		folder = Instance.new("Folder")
@@ -622,8 +653,8 @@ function BuildService:Start()
 			return
 		end
 		local ic = Shop.Estruturas[key]
-		if not Economy:Spend(player, ic.Custo) then
-			remotes.Aviso:FireClient(player, "Moedas insuficientes")
+		if not Coleta:Spend(ic.Custo) then
+			remotes.Aviso:FireClient(player, Custos.Falta(estado, ic.Custo) or "Materiais insuficientes")
 			return
 		end
 		self:Create(key, placeCF, player.UserId, 1)
@@ -644,6 +675,31 @@ function BuildService:Start()
 		if doHeal then healAcc = 0 end
 		for model, data in pairs(structures) do
 			local tipo = data.cfg.Tipo
+			if data.cfg.Portao and now - data.born > 0.5 then
+				-- portao abre sozinho quando um jogador chega perto
+				if not data.doors then
+					data.doors, data.gateT = {}, 0
+					for _, d in ipairs(model:GetChildren()) do
+						local h = d:IsA("Model") and d:GetAttribute("Dobradica")
+						if h then table.insert(data.doors, { m = d, h = h, rel = h:ToObjectSpace(d:GetPivot()), side = d:GetAttribute("Lado") or 1 }) end
+					end
+				end
+				local near = false
+				for _, pl in ipairs(Players:GetPlayers()) do
+					local r = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")
+					if r and (r.Position - data.main.Position).Magnitude < 9 then near = true break end
+				end
+				local goal = near and 1 or 0
+				if math.abs(data.gateT - goal) > 0.001 then
+					if (goal == 1) ~= (data.gateGoal == 1) then soundAt(data.main.Position, SONS.Martelo, 0.2) end
+					data.gateGoal = goal
+					data.gateT += math.clamp(goal - data.gateT, -dt * 3, dt * 3)
+					local e = data.gateT * data.gateT * (3 - 2 * data.gateT)
+					for _, d in ipairs(data.doors) do
+						if d.m.Parent then d.m:PivotTo(d.h * CFrame.Angles(0, d.side * e * math.rad(100), 0) * d.rel) end
+					end
+				end
+			end
 			if tipo == "Torreta" then
 				updateTurret(data, list, now)
 			elseif tipo == "Mina" then

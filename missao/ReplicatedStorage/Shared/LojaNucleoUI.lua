@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CoreCfg = require(Shared.Config:WaitForChild("Core"))
 local ShopCfg = require(Shared.Config:WaitForChild("Shop"))
+local Custos = require(Shared:WaitForChild("Custos"))
 
 local HEAVY = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Heavy)
 local BOLD = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold)
@@ -20,7 +21,7 @@ local BG, CARD, CARD2 = Color3.fromRGB(15, 17, 21), Color3.fromRGB(24, 28, 34), 
 local GREY, DIM = Color3.fromRGB(150, 156, 164), Color3.fromRGB(70, 74, 82)
 
 local SECOES = {
-	{ Nome = "DEFESA", Sub = "Barreiras e armadilhas para segurar o caminho", Cor = Color3.fromRGB(255, 150, 60), Itens = { "Barricada", "Muro", "BarricadaReforcada", "Mina" } },
+	{ Nome = "DEFESA", Sub = "Barreiras e armadilhas para segurar o caminho", Cor = Color3.fromRGB(255, 150, 60), Itens = { "Barricada", "Muro", "BarricadaReforcada", "Portao", "Mina" } },
 	{ Nome = "TORRETAS", Sub = "Atiram sozinhas nos veritys perto", Cor = Color3.fromRGB(70, 175, 255), Itens = { "TorretaBasica", "TorretaGelo", "LancaChamas", "TorretaPesada" } },
 	{ Nome = "SUPORTE", Sub = "Reparam e protegem as outras estruturas", Cor = Color3.fromRGB(90, 230, 140), Itens = { "Drone", "GeradorEscudo" } },
 }
@@ -299,11 +300,12 @@ return function(ctx)
 					if ic.Raio then table.insert(lines, "◎ Raio " .. ic.Raio) end
 					if ic.Cura then table.insert(lines, "✚ Repara " .. ic.Cura .. "/s") end
 					table.insert(lines, "▣ Limite " .. ic.Limite .. " por jogador")
-					local coins = player:GetAttribute("Moedas") or 0
+					table.insert(lines, "⚒ Custo " .. Custos.Texto(ic.Custo))
+					local falta = Custos.Falta(estado, ic.Custo)
 					if (estado:GetAttribute("CoreTier") or 1) < ic.TierMin then
 						table.insert(lines, '<font color="#FF7A7A">🔒 Evolua o Núcleo para o tier ' .. ic.TierMin .. "</font>")
-					elseif coins < ic.Custo then
-						table.insert(lines, '<font color="#FF7A7A">Faltam $' .. fmt(ic.Custo - coins) .. "</font>")
+					elseif falta then
+						table.insert(lines, '<font color="#FF7A7A">' .. falta .. " no estoque</font>")
 					else
 						table.insert(lines, '<font color="#6EF0A0">Clique para construir</font>')
 					end
@@ -324,7 +326,9 @@ return function(ctx)
 				local count = label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 74), Size = UDim2.fromOffset(60, 14), Text = "0/" .. ic.Limite, TextSize = 11, FontFace = MONO, TextColor3 = GREY,
 					TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 23 }, card)
 				local buy = new("TextButton", { Position = UDim2.new(0, 12, 1, -42), Size = UDim2.new(1, -24, 0, 32), BackgroundColor3 = sec.Cor, BorderSizePixel = 0, AutoButtonColor = false,
-					Text = "$" .. fmt(ic.Custo), FontFace = HEAVY, TextSize = 17, TextColor3 = BLACK, ZIndex = 23 }, card)
+					Text = Custos.Texto(ic.Custo), FontFace = HEAVY, TextSize = 17, TextScaled = true, TextColor3 = BLACK, ZIndex = 23 }, card)
+				new("UITextSizeConstraint", { MaxTextSize = 16, MinTextSize = 9 }, buy)
+				new("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4) }, buy)
 				corner(buy, 7)
 				hover(buy, 1.04)
 				buy.MouseEnter:Connect(function() tw(cs, { Transparency = 0 }, 0.12) end)
@@ -334,7 +338,8 @@ return function(ctx)
 					local function fail(msg) sfx(SONS.UIErro) shake(card) tw(cs, { Color = Color3.fromRGB(255, 80, 80), Transparency = 0 }, 0.05) task.delay(0.35, function() tw(cs, { Color = sec.Cor, Transparency = 0.65 }, 0.3) end) ctx.showAviso(msg) end
 					if (estado:GetAttribute("CoreTier") or 1) < ic.TierMin then fail("Exige Núcleo tier " .. ic.TierMin) return end
 					if c and c.full then fail("Limite deste item: " .. ic.Limite) return end
-					if (player:GetAttribute("Moedas") or 0) < ic.Custo then fail("Faltam $" .. fmt(ic.Custo - (player:GetAttribute("Moedas") or 0))) return end
+					local falta = Custos.Falta(estado, ic.Custo)
+					if falta then fail(falta .. " - colete na floresta") return end
 					sfx(SONS.UIClique)
 					M.Close()
 					ctx.startBuild(key)
@@ -435,8 +440,8 @@ return function(ctx)
 				c.buy.BackgroundColor3 = DIM
 				c.buy.TextColor3 = Color3.fromRGB(255, 150, 150)
 			else
-				local ok = coins >= c.ic.Custo
-				c.buy.Text = "$" .. fmt(c.ic.Custo)
+				local ok = Custos.Tem(estado, c.ic.Custo)
+				c.buy.Text = Custos.Texto(c.ic.Custo)
 				c.buy.BackgroundColor3 = ok and c.sec.Cor or c.sec.Cor:Lerp(DIM, 0.65)
 				c.buy.TextColor3 = ok and BLACK or Color3.fromRGB(200, 200, 205)
 			end
@@ -529,7 +534,7 @@ return function(ctx)
 
 	-- atualiza sozinho quando algo muda com a loja aberta
 	local function maybe() if root.Visible then M.Refresh() end end
-	for _, a in ipairs({ "CoreTier", "Wave", "CoreVidaMax" }) do estado:GetAttributeChangedSignal(a):Connect(maybe) end
+	for _, a in ipairs({ "CoreTier", "Wave", "CoreVidaMax", "EstoqueMadeira", "EstoquePedra" }) do estado:GetAttributeChangedSignal(a):Connect(maybe) end
 	player:GetAttributeChangedSignal("Moedas"):Connect(maybe)
 	task.spawn(function()
 		local f = workspace:WaitForChild("Estruturas", 30)
