@@ -63,7 +63,7 @@ local bar = Instance.new("Frame")
 bar.Name = "Slots"
 bar.AnchorPoint = Vector2.new(0.5, 1)
 bar.Position = UDim2.new(0.5, 0, 1, -12)
-bar.Size = UDim2.fromOffset(52 * 2 + 4, 52)
+bar.Size = UDim2.fromOffset(52 * 3 + 8, 52)
 bar.BackgroundTransparency = 1
 bar.Parent = gui
 local layout = Instance.new("UIListLayout")
@@ -72,7 +72,7 @@ layout.Padding = UDim.new(0, 4)
 layout.Parent = bar
 
 local slots = {}
-for i = 1, 2 do
+for i = 1, 3 do
 	local f = Instance.new("TextButton")
 	f.Name = "Slot" .. i
 	f.Text = ""
@@ -156,6 +156,10 @@ ContextActionService:BindAction("Slot2", function(_, st)
 	if st == Enum.UserInputState.Begin then toggleSlot(2) end
 	return Enum.ContextActionResult.Pass
 end, false, Enum.KeyCode.Two, Enum.KeyCode.G)
+ContextActionService:BindAction("Slot3", function(_, st)
+	if st == Enum.UserInputState.Begin then toggleSlot(3) end
+	return Enum.ContextActionResult.Pass
+end, false, Enum.KeyCode.Three, Enum.KeyCode.ButtonX)
 
 -- MIRA (interface) ----------------------------------------------------------------
 local crossGui = Instance.new("ScreenGui")

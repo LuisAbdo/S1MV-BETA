@@ -11,6 +11,7 @@ local ORDER = {
 	"EconomyService",
 	"CoreService",
 	"ChunkService",
+	"ColetaService",
 	"EnemyService",
 	"BuildService",
 	"AllyService",

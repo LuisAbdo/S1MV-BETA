@@ -76,6 +76,24 @@ return {
 	DroneCura = { Id = id(122399158411452), V = 0.25, P = 1.6 },
 	GeradorZumbido = { Id = id(120250063764346), V = 0.22 },
 
+	-- COLETA (madeira / pedra) e estoque do Nucleo
+	MadeiraGolpe = { Id = id(115569575216445), V = 0.7 },      -- machado na arvore
+	ArvoreCai = { Id = id(115569575216445), V = 0.9, P = 0.6 },
+	PedraGolpe = { Id = id(126645609816652), V = 0.55, P = 1.2 },
+	PedraQuebra = { Id = id(126645609816652), V = 0.8, P = 0.85 },
+	PegarItem = { Id = id(88442833509532), V = 0.5, P = 1.3 },
+	Sugar = { Id = id(9125517884), V = 0.8, P = 1.7 },          -- Nucleo sugando os itens
+	Estoque = { Id = id(122399158411452), V = 0.45, P = 1.5 },
+
+	-- VERITY BOSS (noite, longe do Nucleo)
+	BossSpawn = {
+		{ Id = id(78392419910398), V = 1 }, { Id = id(119849669810833), V = 1 },
+		{ Id = id(98163403305703), V = 1 }, { Id = id(98093396438828), V = 1 },
+	},
+	BossPulo = { Id = id(124499547710959), V = 1 },            -- "pe-grande" no chao (com tremor)
+	BossAmbiente = { Id = id(672401637), V = 0.35 },          -- baixinho, so ouve quem esta perto
+	BossSusto = { Id = id(9125471073), V = 0.9, P = 1.4 },
+
 	-- evolucao do Nucleo
 	NucleoEvolui = { Id = id(9114156829), V = 0.9, P = 0.75 },
 	NucleoFanfarra = { Id = id(122399158411452), V = 0.7, P = 0.9 },          -- grilos

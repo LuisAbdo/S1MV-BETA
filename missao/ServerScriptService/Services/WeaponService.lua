@@ -100,6 +100,11 @@ local function giveTools(player, st, equip)
 	hammer:SetAttribute("Slot", 2)
 	hammer:SetAttribute("Arma", "Martelo")
 	hammer.Parent = backpack
+	-- todo jogador nasce com o machado de coleta (madeira e pedra)
+	local axe = Modelos.MakeTool("Machado", "MACHADO")
+	axe:SetAttribute("Slot", 3)
+	axe:SetAttribute("Arma", "Machado")
+	axe.Parent = backpack
 	if wasEquipped then
 		local hum = char:FindFirstChildOfClass("Humanoid")
 		if hum then hum:EquipTool(tool) end
