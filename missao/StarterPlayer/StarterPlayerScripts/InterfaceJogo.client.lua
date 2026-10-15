@@ -545,7 +545,8 @@ RunService.RenderStepped:Connect(function(dt)
 		boss.Visible = true
 		coreBar.Position = UDim2.new(0.5, 0, 0, 108)
 		local r = estado:GetAttribute("Restantes") or estado:GetAttribute("InimigosVivos") or 0
-		leftText.Text = r .. (r == 1 and " verity restante" or " veritys restantes")
+		local dawn = math.max(0, math.ceil((estado:GetAttribute("FimFase") or 0) - now))
+		leftText.Text = r .. (r == 1 and " verity" or " veritys") .. (dawn > 0 and ("  •  amanhece em " .. dawn .. "s") or "")
 	else
 		waveGroup.Visible = true
 		nextGroup.Visible = false

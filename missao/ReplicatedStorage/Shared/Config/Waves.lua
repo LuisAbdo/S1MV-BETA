@@ -6,8 +6,12 @@ return {
 	AberturaLado = 26, -- graus de cada lado do centro da saida
 	LadosPossiveis = { "Norte", "Leste", "Oeste" },
 
-	DiaPrimeiraWave = 60,
-	DiaDuracao = 35,
+	-- CICLO (estilo 99 Noites): o DIA e para coletar madeira/pedra e construir; a NOITE dura mais
+	-- e tem tempo fixo. Os veritys vao chegando durante a noite e recuam quando amanhece.
+	DiaPrimeiraWave = 90,
+	DiaDuracao = 70,
+	NoiteDuracao = 95,
+	NoiteEspalhar = 0.65,          -- a horda inteira chega ate 65% da noite (depois so os que sobraram)
 	TransicaoLuz = 5,
 
 	-- DIFICULDADE = QUANTIDADE: a vida dos veritys NAO cresce; cada wave traz mais bichos
