@@ -25,6 +25,21 @@ main-lobby/  place do Main Lobby (perfil, lojas, classes, grupos e teleporte)
 
 > Mapas, modelos e sons ficam no Roblox (não estão neste repositório) — aqui está só o código.
 
+## Como se joga (modo sobrevivência)
+
+Inspirado em *99 Noites na Floresta*:
+
+- **Dia (mais curto):** sair da base com o **machado**, derrubar árvores e quebrar rochas.
+  Toras e pedras são arrastadas (clique e segure) ou guardadas na mochila (F, até 5).
+  Clicar no Núcleo **suga** tudo para o **estoque** do time.
+- **Construir:** as estruturas da Loja do Núcleo custam **madeira e pedra** do estoque.
+  O **dinheiro** ($ dos abates) fica para armas, vida e evolução do Núcleo.
+- **Noite (mais longa):** a horda de Veritys ataca o Núcleo e recua ao amanhecer. Quem estiver
+  longe da base pode ser caçado pelo **Verity Boss** — ele só desiste quando o alvo volta
+  para perto do Núcleo.
+- **Mapa:** gerado em chunks conforme os jogadores andam, até uma parede de neblina
+  (~500 studs). Números em `Config/Sobrevivencia`.
+
 ## Arquitetura da missão
 
 - `ServerScriptService/Bootstrap.server.lua` carrega os serviços de `Services/` em ordem
