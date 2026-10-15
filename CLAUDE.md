@@ -16,7 +16,14 @@ Fluxo depois de cada mudança no Roblox Studio:
 4. **Um commit por feature**, mensagem em português no formato
    `feat(missao|lobby): <o que mudou>` / `fix(...)` / `docs: ...`, com corpo explicando o porquê.
 5. Push para a branch de trabalho (`atualizacoes-out-2026` enquanto o PR #1 estiver aberto;
-   depois, uma branch nova por conjunto de mudanças) e manter um PR aberto para `main`.
+   depois, uma branch nova por conjunto de mudanças — ex.: `sobrevivencia-floresta`) e manter
+   um PR aberto para `main`.
+
+## Bootstrap
+- `ServerScriptService/Bootstrap` limpo tem **1524 bytes** e termina na linha
+  `print("[Bootstrap] Servicos iniciados: " .. table.concat(ORDER, ", "))`. Qualquer coisa
+  depois disso é o backdoor do plugin — apagar antes de exportar.
+- Serviço novo entra na lista `ORDER` (e o tamanho de referência acima muda).
 
 ## Restrições permanentes
 - Nunca usar modelos grátis com scripts nem `require()` de IDs numéricos.

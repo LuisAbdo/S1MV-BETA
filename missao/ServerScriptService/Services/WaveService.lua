@@ -12,7 +12,7 @@ local LobbyCfg = require(Shared.Config.Lobby)
 
 local WaveService = {}
 local estado, remotes
-local Core, Enemy, Economy, Weapon, Area, Build, Ally, Class, Lobby
+local Core, Enemy, Economy, Weapon, Area, Build, Ally, Class, Lobby, Chunk, Coleta
 local wave = 0
 local phase = "Aguardando"
 local votes = {}
@@ -110,7 +110,9 @@ function WaveService:GetPlan(w)
 end
 
 local function runNight(myRun)
-	setPhase("Noite")
+	local nightLen = Cfg.NoiteDuracao or 90
+	local nightEnd = os.clock() + nightLen
+	setPhase("Noite", nightLen)
 	tweenLight("Noite")
 	Core:BeginWave()
 	votes = {}
@@ -129,7 +131,12 @@ local function runNight(myRun)
 	local R = Cfg.Ritmo or {}
 	local extra = math.floor((wave - 1) / (R.GrupoExtraACada or 1e9))
 	local pace = math.max(R.IntervaloMinimoMult or 1, 1 - (R.IntervaloMenosPorWave or 0) * (wave - 1))
-	while runId == myRun and idx <= #plan do
+	-- espalha a horda pela noite: os grupos chegam aos poucos ate NoiteEspalhar da noite
+	local avgGroup = (Cfg.Grupo.Min + Cfg.Grupo.Max) / 2 + extra * 1.5
+	local groups = math.max(1, math.ceil(#plan / avgGroup))
+	local spread = math.max(0, nightLen * (Cfg.NoiteEspalhar or 0.6) - 2)
+	local gap = math.clamp(spread / groups, Cfg.IntervaloGrupos.Min * pace, 14)
+	while runId == myRun and idx <= #plan and os.clock() < nightEnd do
 		local groupSize = rng:NextInteger(Cfg.Grupo.Min + extra, Cfg.Grupo.Max + extra * 2)
 		-- cada inimigo nasce num ponto aleatorio; as vezes em dupla com o anterior
 		local base = Enemy:PickSpawnPoint()
@@ -144,15 +151,21 @@ local function runNight(myRun)
 			remaining()
 			task.wait(0.15)
 		end
-		if idx <= #plan then task.wait(rng:NextNumber(Cfg.IntervaloGrupos.Min, Cfg.IntervaloGrupos.Max) * pace) end
+		if idx <= #plan then task.wait(gap * rng:NextNumber(0.75, 1.25)) end
 	end
-	-- espera o ultimo inimigo cair (ou o time votar SKIP WAVE)
-	while runId == myRun and Enemy:CountAlive() > 0 do
+	-- a noite tem tempo fixo; o time so pode pular quando a horda inteira ja caiu
+	while runId == myRun and os.clock() < nightEnd do
 		remaining()
-		if countVotes() >= votesNeeded() then
+		if Enemy:CountAlive() == 0 and idx > #plan and countVotes() >= votesNeeded() then
 			return true
 		end
 		task.wait(0.25)
+	end
+	if runId ~= myRun then return false end
+	-- amanheceu: quem sobrou recua para a floresta
+	if Enemy:CountAlive() > 0 then
+		remotes.Aviso:FireAllClients("AMANHECEU! Os veritys recuam para a floresta")
+		Enemy:ClearAll()
 	end
 	remaining()
 	return false
@@ -225,7 +238,8 @@ local function runLoop(myRun)
 				local st = Weapon:GetState(p)
 				if st then weapons[p.UserId] = { tier = st.tier, levels = table.clone(st.levels) } end
 			end
-			checkpoint = { wave = wave + 1, coins = coins, weapons = weapons, coreTier = Core:GetTier(), areas = Area:GetState(), estruturas = Build:GetState() }
+			checkpoint = { wave = wave + 1, coins = coins, weapons = weapons, coreTier = Core:GetTier(), areas = Area:GetState(), estruturas = Build:GetState(),
+				estoque = { Madeira = Coleta:Get("Madeira"), Pedra = Coleta:Get("Pedra") } }
 			estado:SetAttribute("Checkpoint", wave + 1)
 			remotes.Aviso:FireAllClients("CHECKPOINT SALVO (wave " .. (wave + 1) .. ")")
 			log("Checkpoint salvo na wave " .. (wave + 1))
@@ -243,6 +257,8 @@ function WaveService:StartRun(fromCheckpoint, startWave)
 	Build:ClearAll()
 	Ally:ClearAll()
 	Class:ResetRun()
+	Chunk:ResetRun()
+	Coleta:ResetRun()
 	kills = 0
 	plans = {}
 	local lados = Cfg.LadosPossiveis or { "Norte" }
@@ -255,6 +271,7 @@ function WaveService:StartRun(fromCheckpoint, startWave)
 		Core:ResetForRun(cp.coreTier)
 		Area:RestoreState(cp.areas)
 		Build:RestoreState(cp.estruturas)
+		for k, n in pairs(cp.estoque or {}) do Coleta:Add(k, n) end
 		for _, p in ipairs(Players:GetPlayers()) do
 			Economy:Set(p, cp.coins[p.UserId] or 0)
 			local w = cp.weapons[p.UserId]
@@ -288,6 +305,7 @@ function WaveService:StopRun()
 	Build:ClearAll()
 	Ally:ClearAll()
 	Class:ResetRun()
+	Coleta:ResetRun()
 	Core:ResetForRun(1)
 	checkpoint = nil
 	estado:SetAttribute("Checkpoint", 0)
@@ -328,6 +346,8 @@ function WaveService:Init()
 	Ally = require(script.Parent.AllyService)
 	Class = require(script.Parent.ClassService)
 	Lobby = require(script.Parent.LobbyService)
+	Chunk = require(script.Parent.ChunkService)
+	Coleta = require(script.Parent.ColetaService)
 	setPhase("Aguardando")
 	estado:SetAttribute("Wave", 0)
 	estado:SetAttribute("Abates", 0)

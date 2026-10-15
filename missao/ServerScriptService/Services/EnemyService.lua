@@ -47,7 +47,12 @@ end
 local function flat(v) return Vector3.new(v.X, 0, v.Z) end
 
 local function refreshFilter()
-	local list = { folder, fxFolder, deadFolder, Core:GetModel(), workspace:FindFirstChild("Moedas"), workspace:FindFirstChild("Estruturas") }
+	local list = {}
+	for _, inst in ipairs({ folder, fxFolder, deadFolder, Core:GetModel() }) do table.insert(list, inst) end
+	for _, n in ipairs({ "Moedas", "Estruturas", "Recursos", "ItensChao", "NevoaLimite", "VerityBoss" }) do
+		local f = workspace:FindFirstChild(n)
+		if f then table.insert(list, f) end
+	end
 	for _, pl in ipairs(Players:GetPlayers()) do
 		if pl.Character then table.insert(list, pl.Character) end
 	end

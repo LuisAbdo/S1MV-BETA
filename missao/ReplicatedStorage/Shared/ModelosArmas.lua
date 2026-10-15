@@ -146,6 +146,18 @@ M.Armas.Martelo = function()
 	return finish(m, nil, Vector3.new(0, -0.5, 0))
 end
 
+-- machado de coleta (nasce com ele): corta arvores e quebra rochas
+M.Armas.Machado = function()
+	local m = new("Machado")
+	local cabo, metal, fio = rgb(150, 98, 55), rgb(140, 145, 155), rgb(225, 230, 238)
+	P(m, "Handle", Vector3.new(0.3, 2.6, 0.3), Vector3.new(0, 0.3, 0), cabo)
+	P(m, "Pomo", Vector3.new(0.38, 0.25, 0.38), Vector3.new(0, -1.05, 0), rgb(90, 60, 35))
+	P(m, "Lamina", Vector3.new(0.22, 0.9, 1.1), Vector3.new(0, 1.3, -0.62), metal, { smooth = true })
+	P(m, "Fio", Vector3.new(0.18, 1.15, 0.2), Vector3.new(0, 1.3, -1.22), fio, { smooth = true })
+	P(m, "Costas", Vector3.new(0.3, 0.55, 0.45), Vector3.new(0, 1.3, 0.25), metal, { smooth = true })
+	return finish(m, nil, Vector3.new(0, -0.6, 0))
+end
+
 -- ICONES (so visual) ------------------------------------------------------
 M.Icones = {}
 M.Icones.Vida = function()
