@@ -18,6 +18,7 @@ local ORDER = {
 	"ClassService",
 	"WeaponService",
 	"WaveService",
+	"VerityBossService",
 	"LobbyService",
 	"ReviveService",
 	"CuriosityService",
