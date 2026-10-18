@@ -37,6 +37,11 @@ Inspirado em *99 Noites na Floresta*:
 - **Noite (mais longa):** a horda de Veritys ataca o Núcleo e recua ao amanhecer. Quem estiver
   longe da base pode ser caçado pelo **Verity Boss** — ele só desiste quando o alvo volta
   para perto do Núcleo.
+- **Dias:** a noite acaba quando a horda inteira morre; o HUD só conta DIA 1, DIA 2…
+- **Mercador:** uma casa nasce no mapa com um NPC que vende mochila maior, machado afiado e
+  o minimapa, pagos com madeira e pedra do estoque.
+- **Glitcity (noite 15):** primeiro boss, com cutscene, pulsos EMP nas torres e barreiras
+  de voxel. No Studio, `/glitcity` chama ele na hora.
 - **Mapa:** gerado em chunks conforme os jogadores andam, até uma parede de neblina
   (~500 studs). Números em `Config/Sobrevivencia`.
 
