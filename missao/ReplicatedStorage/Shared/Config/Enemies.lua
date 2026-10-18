@@ -29,6 +29,14 @@ return {
 			FuriaLimiar = 0.5, FuriaVelocidade = 1.5,
 			Esmagamento = { Intervalo = 7, Telegrafia = 1.2, Raio = 11, DanoJogador = 25, DanoNucleo = 40, DanoEstrutura = 120, Atordoamento = 1 },
 		},
+		-- PRIMEIRO CHEFE: Glitcity (dia/noite 15). Nunca entra no sorteio normal (WaveMin alto):
+		-- quem cria e o GlitcityService. Modelo: ServerStorage.Glitchity (MeshPart com particulas).
+		Glitcity = {
+			Template = "Glitchity", Nome = "GLITCITY",
+			Vida = 4000, Dano = 35, Tamanho = 12, Velocidade = 7, Cooldown = 1.3, Custo = 999, WaveMin = 99999,
+			ImuneEmpurrao = true, Chefe = true,
+			FrameSkip = 0.12,   -- movimento travado/"pulando quadros"
+		},
 	},
 
 	IA = {

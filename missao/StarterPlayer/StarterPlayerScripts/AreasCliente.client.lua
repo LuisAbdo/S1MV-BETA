@@ -31,6 +31,7 @@ local function applyFog(instant)
 		Density = N.Densidade[idx],
 		Haze = N.Haze[idx],
 		Color = N.Cor,
+		Decay = N.Decaimento or N.Cor,
 		Offset = N.Deslocamento,
 	}
 	if estado:GetAttribute("ArenaFinal") then
@@ -48,6 +49,62 @@ local function applyFog(instant)
 end
 
 applyFog(true)
+
+-- neblina classica branca: o jogador nunca ve o fim do mapa (fica tudo branco ao longe)
+do
+	local F = Config.Nevoa.Classica
+	if F then
+		atm.Parent = nil
+		Lighting.FogStart = F.Inicio
+		Lighting.FogEnd = F.Fim
+		Lighting.FogColor = F.CorDia
+		local estadoJogo = Shared:WaitForChild("EstadoJogo")
+		local function porFase()
+			local cor = estadoJogo:GetAttribute("Fase") == "Noite" and F.CorNoite or F.CorDia
+			TweenService:Create(Lighting, TweenInfo.new(4, Enum.EasingStyle.Sine), { FogColor = cor }):Play()
+		end
+		estadoJogo:GetAttributeChangedSignal("Fase"):Connect(porFase)
+		porFase()
+		-- se algo recriar um Atmosphere, ele sai de novo
+		Lighting.ChildAdded:Connect(function(c)
+			if c:IsA("Atmosphere") then task.defer(function() c.Parent = nil end) end
+		end)
+	end
+end
+
+-- menos glare: SunRays e Bloom do mapa ficam bem mais fracos
+do
+	local B = Config.Nevoa.Brilho
+	if B then
+		local function tame(c)
+			if c:IsA("SunRaysEffect") then
+				c.Intensity = B.SunRays.Intensidade
+				c.Spread = B.SunRays.Espalhar
+			elseif c:IsA("BloomEffect") then
+				c.Intensity = B.Bloom.Intensidade
+				c.Size = B.Bloom.Tamanho
+				c.Threshold = B.Bloom.Limite
+			end
+		end
+		for _, c in ipairs(Lighting:GetChildren()) do tame(c) end
+		Lighting.ChildAdded:Connect(tame)
+	end
+end
+
+-- desfoque do fundo: junto com a neblina, esconde o fim do mapa
+do
+	local D = Config.Nevoa.Desfoque
+	if D then
+		local dof = Lighting:FindFirstChild("DesfoqueFundo") or Instance.new("DepthOfFieldEffect")
+		dof.Name = "DesfoqueFundo"
+		dof.FocusDistance = D.Distancia
+		dof.InFocusRadius = D.Raio
+		dof.FarIntensity = D.Intensidade
+		dof.NearIntensity = 0
+		dof.Enabled = true
+		dof.Parent = Lighting
+	end
+end
 for _, name in ipairs(Config.Ordem) do
 	estado:GetAttributeChangedSignal(name):Connect(function() applyFog(false) end)
 end

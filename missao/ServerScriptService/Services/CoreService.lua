@@ -45,6 +45,9 @@ function CoreService:GetHealthRatio() return maxHealth > 0 and health / maxHealt
 
 function CoreService:Damage(amount)
 	if dead or typeof(amount) ~= "number" or amount <= 0 then return end
+	-- Cupula Protetora (estrutura) segura o dano enquanto estiver de pe
+	local okB, Build = pcall(require, script.Parent.BuildService)
+	if okB and Build.AbsorbCoreDamage and Build:AbsorbCoreDamage(amount) then return end
 	health = math.max(0, health - amount)
 	damageThisWave += amount
 	lastDamage = os.clock()

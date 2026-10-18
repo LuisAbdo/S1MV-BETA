@@ -35,6 +35,15 @@ local function soundAt(pos, def, pitchJitter)
 	Debris:AddItem(a, 4)
 end
 local TIRO = { TorretaBasica = SONS.TorretaTiro, TorretaGelo = SONS.TorretaGelo, TorretaPesada = SONS.TorretaPesada }
+-- sons proprios das armadilhas (Config/Sons.Armadilha)
+local SA = SONS.Armadilha or {}
+local function trapSound(data, pos, def, every)
+	if not def then return end
+	local now = os.clock()
+	if every and now - (data.lastSnd or 0) < every then return end
+	data.lastSnd = now
+	soundAt(pos, def, 0.15)
+end
 
 local BuildService = {}
 local remotes, estado, Core, Enemy, Economy, Coleta
@@ -177,6 +186,190 @@ builders.Portao = function(model, cf, s)
 	end
 end
 
+-- PECAS DE GRADE (fechar a base em 360°) -----------------------------------------------------
+local function mainOf(model) return model:FindFirstChild("Base") end
+
+builders.PisoReforcado = function(model, cf, s)
+	for ix = -1, 1, 2 do
+		for iz = -1, 1, 2 do
+			P(model, cf, Vector3.new(3.9, 1, 3.9), CFrame.new(ix * 2, 0.5, iz * 2), (ix + iz) == 0 and STONE or STONE2)
+		end
+	end
+	P(model, cf, Vector3.new(8.2, 0.3, 0.6), CFrame.new(0, 1.1, 0), WOODD)
+	P(model, cf, Vector3.new(0.6, 0.3, 8.2), CFrame.new(0, 1.1, 0), WOODD)
+end
+
+builders.Teto = function(model, cf, s)
+	for i = -1, 1 do
+		P(model, cf, Vector3.new(8, 0.8, 2.6), CFrame.new(0, 0.4, i * 2.7), i == 0 and WOOD2 or WOOD)
+	end
+	P(model, cf, Vector3.new(8.4, 0.3, 8.4), CFrame.new(0, 0.95, 0), WOODD)
+end
+
+builders.Rampa = function(model, cf, s)
+	local main = mainOf(model)
+	if main then main.CanCollide = false end
+	local w = Instance.new("WedgePart")
+	w.Anchored = true
+	w.Size = s
+	w.CFrame = cf * CFrame.new(0, s.Y / 2, 0)
+	w.Color = WOOD
+	w.TopSurface = Enum.SurfaceType.Studs
+	w.CanCollide = true
+	w.CanQuery = false
+	w.CanTouch = false
+	w.Name = "Rampa"
+	w.Parent = model
+	for i = 1, 4 do
+		local z = s.Z / 2 - i * (s.Z / 5)
+		local h = s.Y * (i / 5)
+		P(model, cf, Vector3.new(s.X + 0.2, 0.3, 0.5), CFrame.new(0, h + 0.1, z) * CFrame.Angles(math.atan2(s.Y, s.Z), 0, 0), WOODD)
+	end
+end
+
+-- muro com fenda: a parte de baixo segura os veritys; a de cima so bloqueia corpos (os tiros passam)
+builders.MuroTiro = function(model, cf, s)
+	local main = mainOf(model)
+	if main then
+		main.Size = Vector3.new(s.X, 3.6, s.Z)
+		main.CFrame = cf * CFrame.new(0, 1.8, 0)
+	end
+	for r = 0, 1 do
+		for i = -2, 2 do
+			local x = i * 2.5 + ((r % 2 == 0) and 0 or 1.25)
+			if math.abs(x) <= 4 then P(model, cf, Vector3.new(2.4, 1.75, s.Z), CFrame.new(x, 0.9 + r * 1.8, 0), (i + r) % 2 == 0 and STONE or STONE2) end
+		end
+	end
+	local top = P(model, cf, Vector3.new(s.X + 0.2, 1.8, s.Z), CFrame.new(0, 6.1, 0), STONE2, { name = "Topo" })
+	top.CanCollide = true -- corpo nao passa, raycast (tiro) passa
+	for _, x in ipairs({ -4.4, 4.4 }) do
+		local pil = P(model, cf, Vector3.new(1.2, 1.6, s.Z), CFrame.new(x, 4.4, 0), STONE, { name = "Pilar" })
+		pil.CanCollide = true
+	end
+	P(model, cf, Vector3.new(7.6, 0.2, s.Z + 0.1), CFrame.new(0, 3.65, 0), METAL)
+end
+
+-- ARMADILHAS DE CHAO --------------------------------------------------------------------------
+builders.Espinhos = function(model, cf, s)
+	P(model, cf, Vector3.new(s.X, 0.4, s.Z), CFrame.new(0, 0.2, 0), METAL)
+	for ix = -2, 2 do
+		for iz = -2, 2 do
+			if (ix + iz) % 2 == 0 then
+				local sp = Instance.new("WedgePart")
+				sp.Anchored = true; sp.CanCollide = false; sp.CanQuery = false; sp.CanTouch = false
+				sp.Size = Vector3.new(0.5, 1.2, 0.5)
+				sp.Color = METAL2
+				sp.CFrame = cf * CFrame.new(ix * 1.1, 1, iz * 1.1)
+				sp.Name = "Espinho"
+				sp.Parent = model
+			end
+		end
+	end
+end
+
+builders.Lentidao = function(model, cf, s)
+	P(model, cf, Vector3.new(s.X, 0.3, s.Z), CFrame.new(0, 0.15, 0), Color3.fromRGB(60, 50, 40))
+	P(model, cf, Vector3.new(s.X - 0.8, 0.2, s.Z - 0.8), CFrame.new(0, 0.35, 0), Color3.fromRGB(140, 210, 255), { material = Enum.Material.Ice, smooth = true })
+end
+
+builders.Quicador = function(model, cf, s)
+	P(model, cf, Vector3.new(s.X, 0.5, s.Z), CFrame.new(0, 0.25, 0), METAL)
+	P(model, cf, Vector3.new(0.8, 0.6, 0.8), CFrame.new(0, 0.8, 0), METAL2, { name = "Mola" })
+	local pad = P(model, cf, Vector3.new(s.X - 0.6, 0.35, s.Z - 0.6), CFrame.new(0, 1.15, 0), Color3.fromRGB(255, 205, 60), { name = "Tampa" })
+	return pad
+end
+
+-- ARMADILHAS DE PAREDE ------------------------------------------------------------------------
+builders.LancaDardos = function(model, cf, s)
+	P(model, cf, Vector3.new(s.X, s.Y, s.Z), CFrame.new(0, s.Y / 2, 0), STONE2)
+	local bico = P(model, cf, Vector3.new(0.9, 0.9, 1.2), CFrame.new(0, s.Y * 0.55, -s.Z / 2 - 0.5), METAL, { name = "Bico" })
+	P(model, cf, Vector3.new(0.4, 0.4, 0.2), CFrame.new(0, s.Y * 0.55, -s.Z / 2 - 1.15), Color3.fromRGB(255, 80, 60), { neon = true })
+	return nil, bico
+end
+
+builders.Repulsor = function(model, cf, s)
+	P(model, cf, Vector3.new(s.X, s.Y, s.Z), CFrame.new(0, s.Y / 2, 0), METAL)
+	local disco = P(model, cf, Vector3.new(0.4, 3, 3), CFrame.new(0, s.Y * 0.55, -s.Z / 2 - 0.2) * CFrame.Angles(0, math.rad(90), 0), Color3.fromRGB(120, 200, 255), { neon = true, shape = Enum.PartType.Cylinder, name = "Disco" })
+	return nil, disco, disco
+end
+
+-- ARMADILHAS DE TETO (portico: os veritys passam por baixo) ------------------------------------
+local function portico(model, cf, s, cor)
+	for _, x in ipairs({ -s.X / 2 + 0.6, s.X / 2 - 0.6 }) do
+		for _, z in ipairs({ -s.Z / 2 + 0.6, s.Z / 2 - 0.6 }) do
+			P(model, cf, Vector3.new(1.2, s.Y, 1.2), CFrame.new(x, s.Y / 2, z), cor)
+		end
+	end
+	P(model, cf, Vector3.new(s.X, 1, s.Z), CFrame.new(0, s.Y - 0.5, 0), cor)
+end
+
+builders.Prensa = function(model, cf, s)
+	portico(model, cf, s, METAL)
+	local head = Instance.new("Model")
+	head.Name = "Prensa"
+	head.Parent = model
+	local bloco = P(model, cf, Vector3.new(s.X - 2.6, 1.6, s.Z - 2.6), CFrame.new(0, s.Y - 1.9, 0), METAL2, { parent = head, name = "Bloco" })
+	P(model, cf, Vector3.new(0.8, 1.2, 0.8), CFrame.new(0, s.Y - 0.9, 0), METAL, { parent = head })
+	head.PrimaryPart = bloco
+	return head
+end
+
+builders.EmissorGas = function(model, cf, s)
+	portico(model, cf, s, Color3.fromRGB(70, 90, 70))
+	local bico = P(model, cf, Vector3.new(2, 1, 2), CFrame.new(0, s.Y - 1.5, 0), Color3.fromRGB(110, 200, 90), { neon = true, name = "Bico" })
+	local e = Instance.new("ParticleEmitter")
+	e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	e.Color = ColorSequence.new(Color3.fromRGB(140, 230, 110))
+	e.Size = NumberSequence.new(2, 5)
+	e.Transparency = NumberSequence.new(0.5, 1)
+	e.Lifetime = NumberRange.new(1, 1.6)
+	e.Speed = NumberRange.new(2, 5)
+	e.EmissionDirection = Enum.NormalId.Bottom
+	e.SpreadAngle = Vector2.new(40, 40)
+	e.Rate = 0
+	e.Name = "Gas"
+	e.Parent = bico
+	return nil, bico
+end
+
+-- DEFESAS AVANCADAS ---------------------------------------------------------------------------
+builders.CampoForca = function(model, cf, s)
+	for _, x in ipairs({ -s.X / 2 + 0.6, s.X / 2 - 0.6 }) do
+		P(model, cf, Vector3.new(1.2, s.Y, 1.2), CFrame.new(x, s.Y / 2, 0), METAL)
+		P(model, cf, Vector3.new(1.4, 0.6, 1.4), CFrame.new(x, s.Y + 0.3, 0), Color3.fromRGB(90, 200, 255), { neon = true })
+	end
+	local f = P(model, cf, Vector3.new(s.X - 2.4, s.Y - 0.6, 0.15), CFrame.new(0, s.Y / 2, 0), Color3.fromRGB(110, 210, 255), { neon = true, transparency = 0.65, name = "Laser" })
+	return nil, nil, f
+end
+
+builders.Cupula = function(model, cf, s)
+	P(model, cf, Vector3.new(s.X, 1.2, s.Z), CFrame.new(0, 0.6, 0), METAL)
+	P(model, cf, Vector3.new(2, s.Y - 1.2, 2), CFrame.new(0, 0.6 + (s.Y - 1.2) / 2, 0), METAL2)
+	local orb = P(model, cf, Vector3.one * 2, CFrame.new(0, s.Y + 0.4, 0), Color3.fromRGB(150, 120, 255), { neon = true, shape = Enum.PartType.Ball, name = "Orbe" })
+	return nil, nil, orb
+end
+
+builders.GradeEletrica = function(model, cf, s)
+	for _, side in ipairs({ -1, 1 }) do
+		P(model, cf, Vector3.new(1.6, s.Y, s.Z), CFrame.new(side * (s.X / 2 - 0.8), s.Y / 2, 0), METAL)
+		P(model, cf, Vector3.new(1.8, 0.5, s.Z + 0.2), CFrame.new(side * (s.X / 2 - 0.8), s.Y + 0.25, 0), Color3.fromRGB(255, 220, 60), { neon = true })
+	end
+	for _, side in ipairs({ -1, 1 }) do
+		local door = Instance.new("Model")
+		door.Name = side < 0 and "PortaE" or "PortaD"
+		door.Parent = model
+		local hinge = cf * CFrame.new(side * (s.X / 2 - 1.6), 0, 0)
+		local w = s.X / 2 - 1.6
+		local frame = P(model, hinge, Vector3.new(w, s.Y - 1.2, 0.3), CFrame.new(-side * w / 2, s.Y / 2, 0), METAL2, { parent = door, name = "Folha", transparency = 0.2 })
+		for k = 1, 4 do
+			P(model, hinge, Vector3.new(0.15, s.Y - 1.6, 0.35), CFrame.new(-side * w * k / 5, s.Y / 2, 0), Color3.fromRGB(255, 220, 60), { parent = door, neon = true })
+		end
+		door.PrimaryPart = frame
+		door:SetAttribute("Lado", side)
+		door:SetAttribute("Dobradica", hinge)
+	end
+end
+
 builders.Mina = function(model, cf, s)
 	P(model, cf, Vector3.new(0.6, 3, 3), CFrame.new(0, 0.3, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(45, 45, 50), { shape = Enum.PartType.Cylinder })
 	P(model, cf, Vector3.new(0.3, 1.8, 1.8), CFrame.new(0, 0.7, 0) * CFrame.Angles(0, 0, math.rad(90)), Color3.fromRGB(90, 90, 95), { shape = Enum.PartType.Cylinder })
@@ -280,14 +473,29 @@ function BuildService:Create(key, cf, ownerId, hpRatio)
 	main.Size = s
 	main.CFrame = cf * CFrame.new(0, s.Y / 2, 0)
 	main.Transparency = 1
-	-- portao: jogadores atravessam (sem colisao), mas os veritys batem nele (raycast de obstaculo)
-	main.CanCollide = ic.Tipo ~= "Mina" and not ic.Portao
+	-- armadilhas de chao/teto nao bloqueiam ninguem; portoes e o campo de forca bloqueiam os veritys
+	-- (o raycast de obstaculo deles respeita CanCollide) mas deixam os JOGADORES passar (grupo de colisao)
+	main.CanCollide = ic.Tipo ~= "Mina" and not ic.NaoBloqueia
+	if ic.Portao or ic.PassaJogador then main.CollisionGroup = "PassaJogador" end
 	main.CanQuery = true
 	main.CanTouch = false
 	main.Parent = model
 	model.PrimaryPart = main
 	local head, muzzle, accent, drone = builders[key](model, cf, s)
+	if key == "Cupula" then
+		-- domo em volta do Nucleo (so visual; o dano e absorvido em AbsorbCoreDamage)
+		local dome = Instance.new("Part")
+		dome.Name = "Domo"
+		dome.Shape = Enum.PartType.Ball
+		dome.Size = Vector3.one * (ic.RaioDomo or 18) * 2
+		dome.CFrame = CFrame.new(Core.Center)
+		dome.Material = Enum.Material.ForceField
+		dome.Color = Color3.fromRGB(150, 120, 255)
+		dome.Anchored = true; dome.CanCollide = false; dome.CanQuery = false; dome.CanTouch = false; dome.CastShadow = false
+		dome.Parent = model
+	end
 	model:SetAttribute("Item", key)
+	if ic.NaoBloqueia or ic.Tipo == "Mina" then model:SetAttribute("NaoBloqueia", true) end
 	model:SetAttribute("Dono", ownerId)
 	model:SetAttribute("VidaMax", ic.Vida)
 	CollectionService:AddTag(model, "Estrutura")
@@ -464,11 +672,23 @@ function BuildService:Validate(player, key, cf)
 	if not root or (root.Position - Vector3.new(x, root.Position.Y, z)).Magnitude > 70 then return nil, "Chegue mais perto" end
 	local rp = RaycastParams.new()
 	rp.FilterType = Enum.RaycastFilterType.Exclude
-	local ignore = { folder, Enemy:Folder(), fxFolder, workspace:FindFirstChild("Moedas") }
+	-- pecas empilhaveis (piso, teto, rampa...) podem ir em cima de outras estruturas
+	local ignore = { Enemy:Folder(), fxFolder }
+	if not ic.Empilhavel then table.insert(ignore, folder) end
+	for _, n in ipairs({ "Moedas", "Recursos", "ItensChao" }) do
+		local f = workspace:FindFirstChild(n)
+		if f then table.insert(ignore, f) end
+	end
 	for _, pl in ipairs(Players:GetPlayers()) do if pl.Character then table.insert(ignore, pl.Character) end end
 	rp.FilterDescendantsInstances = ignore
-	local hit = workspace:Raycast(Vector3.new(x, Core.Position.Y + 12, z), Vector3.new(0, -30, 0), rp)
-	if not hit or math.abs(hit.Position.Y - Core.Position.Y) > 1.5 then return nil, "Terreno inválido" end
+	-- o chao agora tem relevo: aceita colinas suaves, recusa barranco
+	local fromY = ic.Empilhavel and math.max(Core.Position.Y + 24, cf.Position.Y + 3) or Core.Position.Y + 24
+	local hit = workspace:Raycast(Vector3.new(x, fromY, z), Vector3.new(0, -(fromY - Core.Position.Y + 26), 0), rp)
+	local maxUp = ic.Empilhavel and 30 or 10
+	if not hit or (hit.Position.Y - Core.Position.Y) > maxUp or (Core.Position.Y - hit.Position.Y) > 10 or hit.Normal.Y < 0.82 then return nil, "Terreno inválido" end
+	if ic.Empilhavel and (cf.Position.Y - hit.Position.Y) > 4 then
+		-- o cliente mirou num ponto mais alto (ex.: em cima de um muro): usa o que o servidor achou
+	end
 	local placeCF = CFrame.new(x, hit.Position.Y, z) * CFrame.Angles(0, yaw, 0)
 	local s = ic.Tamanho
 	local op = OverlapParams.new()
@@ -488,6 +708,129 @@ function BuildService:Validate(player, key, cf)
 	if cnt.total >= C.LimitePorJogador then return nil, "Limite por jogador: " .. C.LimitePorJogador end
 	if total >= C.LimiteGlobal then return nil, "Limite do servidor atingido" end
 	return placeCF
+end
+
+-- ARMADILHAS / DEFESAS ESPECIAIS ----------------------------------------------------------------
+local function flatDist(a, b) return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude end
+function BuildService:_trap(data, list, now, dt)
+	local ic, key = data.cfg, data.key
+	local pos = data.main.Position
+	local pl = ownerPlayer(data)
+	data.tick = (data.tick or 0) + dt
+	if key == "Espinhos" or key == "EmissorGas" then
+		if data.tick < (ic.Intervalo or 0.5) then return end
+		data.tick = 0
+		local hitAny = false
+		for _, e in ipairs(list) do
+			if flatDist(e.pos, pos) <= ic.Raio then
+				Enemy:Damage(e.model, ic.Dano, pl)
+				hitAny = true
+			end
+		end
+		if key == "EmissorGas" then
+			local bico = data.muzzle
+			local gas = bico and bico:FindFirstChild("Gas")
+			if gas then gas.Rate = hitAny and 18 or 2 end
+			if hitAny then trapSound(data, pos, SA.Gas, 1.5) end
+		elseif hitAny then
+			trapSound(data, pos, SA.Espinhos or SONS.Golpe)
+		end
+	elseif key == "Lentidao" then
+		if data.tick < 0.25 then return end
+		data.tick = 0
+		for _, e in ipairs(list) do
+			if flatDist(e.pos, pos) <= ic.Raio then
+				Enemy:Slow(e.model, ic.Lentidao, 0.6)
+				if ic.Dano then Enemy:Damage(e.model, ic.Dano, pl) end
+				trapSound(data, pos, SA.Gelo, 0.8)
+			end
+		end
+	elseif key == "Quicador" then
+		if now - (data.lastFire or 0) < ic.Cadencia then return end
+		for _, e in ipairs(list) do
+			if flatDist(e.pos, pos) <= ic.Raio then
+				data.lastFire = now
+				local away = Vector3.new(e.pos.X - Core.Position.X, 0, e.pos.Z - Core.Position.Z)
+				for _, t in ipairs(enemiesNear(list, pos, ic.Raio + 1)) do
+					if ic.Dano then Enemy:Damage(t.model, ic.Dano, pl) end
+					Enemy:Knockback(t.model, away, ic.Forca)
+				end
+				if data.head then
+					local base = data.head.CFrame
+					data.head.CFrame = base * CFrame.new(0, 0.8, 0)
+					TweenService:Create(data.head, TweenInfo.new(0.35, Enum.EasingStyle.Bounce), { CFrame = base }):Play()
+				end
+				trapSound(data, pos, SA.Quicador or SONS.PuloInimigo)
+				break
+			end
+		end
+	elseif key == "LancaDardos" or key == "Repulsor" then
+		if now - (data.lastFire or 0) < ic.Cadencia then return end
+		local fwd = -data.cf.LookVector
+		local origin = data.muzzle and data.muzzle.Position or pos
+		local hits = {}
+		for _, e in ipairs(list) do
+			local rel = Vector3.new(e.pos.X - origin.X, 0, e.pos.Z - origin.Z)
+			local along = rel:Dot(Vector3.new(fwd.X, 0, fwd.Z).Unit)
+			local side = (rel - Vector3.new(fwd.X, 0, fwd.Z).Unit * along).Magnitude
+			if along > 0 and along <= ic.Alcance and side <= (ic.Largura or 2.5) then table.insert(hits, { e = e, along = along }) end
+		end
+		if #hits == 0 then return end
+		data.lastFire = now
+		if key == "LancaDardos" then
+			table.sort(hits, function(a, b) return a.along < b.along end)
+			local alvo = hits[1].e
+			Enemy:Damage(alvo.model, ic.Dano, pl)
+			remotes.Efeito:FireAllClients("TorretaTiro", data.model, origin, alvo.pos, "Dardo")
+			trapSound(data, origin, SA.Dardo or SONS.Golpe)
+		else
+			for _, h in ipairs(hits) do
+				if ic.Dano then Enemy:Damage(h.e.model, ic.Dano, pl) end
+				Enemy:Knockback(h.e.model, Vector3.new(fwd.X, 0, fwd.Z), ic.Forca)
+			end
+			boom(origin, 4, Color3.fromRGB(120, 200, 255))
+			trapSound(data, origin, SA.Repulsor or SONS.Explosao)
+		end
+	elseif key == "Prensa" then
+		if now - (data.lastFire or 0) < ic.Cadencia then return end
+		local under = {}
+		for _, e in ipairs(list) do
+			if math.abs(e.pos.X - pos.X) <= ic.Tamanho.X / 2 and math.abs(e.pos.Z - pos.Z) <= ic.Tamanho.Z / 2 then table.insert(under, e) end
+		end
+		if #under == 0 then return end
+		data.lastFire = now
+		if data.head and data.head.PrimaryPart then
+			local up = data.head:GetPivot()
+			local down = up * CFrame.new(0, -(ic.Tamanho.Y - 3.5), 0)
+			data.head:PivotTo(down)
+			task.delay(0.35, function() if data.head.Parent then data.head:PivotTo(up) end end)
+		end
+		for _, e in ipairs(under) do Enemy:Damage(e.model, ic.Dano, pl); Enemy:Stun(e.model, 0.6) end
+		boom(pos - Vector3.new(0, ic.Tamanho.Y / 2 - 0.5, 0), 5, Color3.fromRGB(200, 200, 210))
+		trapSound(data, pos, SA.Prensa or SONS.Martelo)
+	elseif key == "GradeEletrica" then
+		if data.tick < (ic.Intervalo or 0.6) then return end
+		data.tick = 0
+		for _, e in ipairs(list) do
+			if flatDist(e.pos, pos) <= ic.Raio then
+				Enemy:Damage(e.model, ic.Dano, pl)
+				Enemy:Knockback(e.model, Vector3.new(e.pos.X - pos.X, 0, e.pos.Z - pos.Z), ic.Forca or 4)
+				remotes.Efeito:FireAllClients("TorretaTiro", data.model, pos + Vector3.new(0, 4, 0), e.pos, "Raio")
+				trapSound(data, pos, SA.Eletrico, 0.5)
+			end
+		end
+	end
+end
+
+-- CUPULA PROTETORA: segura o dano que iria para o Nucleo ate quebrar
+function BuildService:AbsorbCoreDamage(amount)
+	for model, data in pairs(structures) do
+		if data.key == "Cupula" and data.hp > 0 then
+			self:Damage(model, amount)
+			return true
+		end
+	end
+	return false
 end
 
 -- CHECKPOINT ------------------------------------------------------------
@@ -551,6 +894,8 @@ local function ownerPlayer(data) return Players:GetPlayerByUserId(data.owner) en
 
 local function updateTurret(data, list, now)
 	local ic = data.cfg
+	-- pulso eletromagnetico do Glitcity: torre desligada por alguns segundos
+	if (data.model:GetAttribute("EMPAte") or 0) > workspace:GetServerTimeNow() then return end
 	local origin = data.muzzle and data.muzzle.Position or data.main.Position
 	local best, bd
 	for _, e in ipairs(list) do
@@ -610,6 +955,13 @@ function BuildService:Init()
 	Enemy = require(script.Parent.EnemyService)
 	Economy = require(script.Parent.EconomyService)
 	Coleta = require(script.Parent.ColetaService)
+	-- portoes / campo de forca: bloqueiam veritys, mas jogadores atravessam
+	pcall(function()
+		local PS = game:GetService("PhysicsService")
+		PS:RegisterCollisionGroup("PassaJogador")
+		PS:RegisterCollisionGroup("Jogadores")
+		PS:CollisionGroupSetCollidable("PassaJogador", "Jogadores", false)
+	end)
 	folder = workspace:FindFirstChild("Estruturas")
 	if not folder then
 		folder = Instance.new("Folder")
@@ -675,6 +1027,7 @@ function BuildService:Start()
 		if doHeal then healAcc = 0 end
 		for model, data in pairs(structures) do
 			local tipo = data.cfg.Tipo
+			if tipo == "Armadilha" then self:_trap(data, list, now, dt) end
 			if data.cfg.Portao and now - data.born > 0.5 then
 				-- portao abre sozinho quando um jogador chega perto
 				if not data.doors then

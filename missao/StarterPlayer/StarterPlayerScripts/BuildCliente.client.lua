@@ -127,7 +127,12 @@ overlap2.FilterType = Enum.RaycastFilterType.Include
 local function update()
 	if not currentKey or not ghost then return end
 	local ic = Shop.Estruturas[currentKey]
-	local ignore = { ghost, workspace.CurrentCamera, workspace:FindFirstChild("InimigosAtivos"), workspace:FindFirstChild("Moedas"), workspace:FindFirstChild("Efeitos"), workspace:FindFirstChild("Estruturas") }
+	local ignore = { ghost, workspace.CurrentCamera }
+	for _, n in ipairs({ "InimigosAtivos", "Moedas", "Efeitos", "Estruturas", "Recursos", "ItensChao" }) do
+		local f = workspace:FindFirstChild(n)
+		-- pecas empilhaveis (piso, teto, rampa) miram em cima das outras estruturas
+		if f and not (ic.Empilhavel and n == "Estruturas") then table.insert(ignore, f) end
+	end
 	for _, pl in ipairs(Players:GetPlayers()) do if pl.Character then table.insert(ignore, pl.Character) end end
 	rayParams.FilterDescendantsInstances = ignore
 	local ray = aimRay()
@@ -145,9 +150,9 @@ local function update()
 	local d = (Vector3.new(x, 0, z) - Vector3.new(cp.X, 0, cp.Z)).Magnitude
 	if d > C.RaioConstrucao then why = "Longe demais do Núcleo"
 	elseif d < C.RaioMinimoNucleo then why = "Perto demais do Núcleo"
-	elseif math.abs(hit.Position.Y - cp.Y) > 1.5 then why = "Terreno inválido"
+	elseif (hit.Position.Y - cp.Y) > (ic.Empilhavel and 30 or 10) or (cp.Y - hit.Position.Y) > 10 or hit.Normal.Y < 0.82 then why = "Terreno inválido"
 	elseif (estado:GetAttribute("CoreTier") or 1) < ic.TierMin then why = "Exige Núcleo tier " .. ic.TierMin
-	elseif not Custos.Tem(estado, ic.Custo) then why = Custos.Falta(estado, ic.Custo)
+	elseif not Custos.Tem(estado, ic.Custo) then why = "Falta material no estoque"
 	else
 		overlap.FilterDescendantsInstances = { ghost, workspace:FindFirstChild("InimigosAtivos"), workspace:FindFirstChild("Moedas"), workspace:FindFirstChild("Efeitos") }
 		local boxCF = cf * CFrame.new(0, s.Y / 2 + 0.3, 0)
@@ -161,7 +166,7 @@ local function update()
 	ghostBox.Color = valid and Color3.fromRGB(80, 255, 110) or Color3.fromRGB(255, 70, 70)
 	ghostBox.SelectionBox.Color3 = ghostBox.Color
 	if hint then
-		hint.Text = ic.Nome .. " · " .. Custos.Texto(ic.Custo) .. (why and ("  —  " .. why) or "") .. "\n" ..
+		hint.Text = ic.Nome .. (why and ("  —  " .. why) or "") .. "\n" ..
 			(UserInputService.TouchEnabled and not UserInputService.MouseEnabled and "COLOCAR · GIRAR · SAIR (botões)" or "Clique: colocar  ·  R: girar  ·  Q: sair")
 		hint.TextColor3 = valid and Color3.new(1, 1, 1) or Color3.fromRGB(255, 160, 160)
 	end
@@ -203,6 +208,28 @@ local function start(key)
 	local g; g, hint = makeHint()
 	hint = hint
 	local gui = g
+	-- custo com icones de madeira/pedra, numa plaquinha acima da dica (vermelho se faltar)
+	do
+		local tag = Instance.new("Frame")
+		tag.Name = "CustoTag"
+		tag.AnchorPoint = Vector2.new(0.5, 1)
+		tag.Position = UDim2.new(0.5, 0, 0, -6)
+		tag.Size = UDim2.fromOffset(220, 34)
+		tag.BackgroundColor3 = Color3.fromRGB(38, 32, 52)
+		tag.BackgroundTransparency = 0.1
+		tag.Parent = hint
+		local c2 = Instance.new("UICorner"); c2.CornerRadius = UDim.new(0, 10); c2.Parent = tag
+		local icNow = Shop.Estruturas[key]
+		local function fill()
+			if tag.Parent and icNow then
+				Custos.Linha(tag, icNow.Custo, { tamanho = 20, estoque = estado, contorno = Color3.fromRGB(18, 14, 26) })
+			end
+		end
+		fill()
+		local c1 = estado:GetAttributeChangedSignal("EstoqueMadeira"):Connect(fill)
+		local c3 = estado:GetAttributeChangedSignal("EstoquePedra"):Connect(fill)
+		tag.Destroying:Connect(function() c1:Disconnect(); c3:Disconnect() end)
+	end
 	hint.Destroying:Connect(function() if gui then gui:Destroy() end end)
 	hint.AncestryChanged:Connect(function() end)
 	ContextActionService:BindActionAtPriority("ColocarEstrutura", function(_, state)

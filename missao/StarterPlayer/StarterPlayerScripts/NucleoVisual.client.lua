@@ -14,7 +14,10 @@ local player = Players.LocalPlayer
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Cfg = require(Shared:WaitForChild("Config"):WaitForChild("Core"))
 local SONS = require(Shared.Config:WaitForChild("Sons"))
+local SobCfg = require(Shared.Config:WaitForChild("Sobrevivencia"))
 local estado = Shared:WaitForChild("EstadoJogo")
+local remotes = Shared:WaitForChild("Remotes")
+local rng = Random.new()
 
 local core = CollectionService:GetTagged("Nucleo")[1]
 while not core do
@@ -122,13 +125,43 @@ local blend -- { from, to, t0, dur }
 local flashUntil = 0
 rebuildDecor(tier)
 
-RunService.RenderStepped:Connect(function()
+-- REACOES: dano (tranco, piscada vermelha, rachaduras) e succao (giro rapido, engolidas) ----------
+local rotAcc = 0
+local spinBoost, spinUntil = 0, 0   -- graus/s extras enquanto suga
+local punchS, punchV = 1, 0         -- escala da esfera (mola)
+local jitterUntil, jitterAmp = 0, 0
+local hitK, hitCol = 0, WHITE
+local evolving = false
+local currentBase = CFrame.new(center)
+
+RunService.RenderStepped:Connect(function(dt)
+	dt = math.min(dt, 1 / 30)
 	local t = os.clock()
 	local y = math.sin(t * 2 * math.pi / A.Periodo) * A.Amplitude
-	local rot = math.rad(A.GiroGrausPorSeg * t)
+	-- giro acumulado (acelera durante a succao e volta devagar)
+	if t < spinUntil then spinBoost = math.min(720, spinBoost + dt * 1400) else spinBoost = math.max(0, spinBoost - dt * 500) end
+	rotAcc += math.rad(A.GiroGrausPorSeg + spinBoost) * dt
+	local rot = rotAcc
 	local pos = center + Vector3.new(0, y, 0)
+	if t < jitterUntil then
+		local k = jitterAmp * (jitterUntil - t) / 0.35
+		pos += Vector3.new(rng:NextNumber(-k, k), rng:NextNumber(-k, k) * 0.6, rng:NextNumber(-k, k))
+	end
 	local base = CFrame.new(pos) * CFrame.Angles(0, rot, 0)
+	currentBase = base
 	for p, rel in pairs(floating) do p.CFrame = base * rel end
+	-- mola da escala: tranco no dano, "engolida" na succao
+	punchV += (-(punchS - 1) * 260 - punchV * 13) * dt
+	punchS += punchV * dt
+	if not evolving then
+		if math.abs(punchS - 1) > 0.002 or math.abs(punchV) > 0.02 then
+			esf.Size = esfSize * punchS
+			if casca then casca.Size = cascaSize * (1 + (punchS - 1) * 0.6) end
+		elseif esf.Size ~= esfSize then
+			esf.Size = esfSize
+			if casca then casca.Size = cascaSize end
+		end
+	end
 
 	-- cor: tier (ou transicao) + alerta vermelho com vida baixa
 	local col = tierColor(tier, t)
@@ -143,6 +176,9 @@ RunService.RenderStepped:Connect(function()
 		local danger = (0.35 - r) / 0.35 * (0.55 + 0.45 * math.sin(t * 8))
 		col = col:Lerp(RED, math.clamp(danger, 0, 1))
 	end
+	-- piscada do dano (vermelho) ou da engolida (cor do item)
+	hitK = math.max(0, hitK - dt * 3.5)
+	if hitK > 0 then col = col:Lerp(hitCol, math.min(1, hitK * 0.85)) end
 	local esfCol = t < flashUntil and WHITE or col
 	esf.Color = esfCol
 	for _, p in ipairs(haloParts) do p.Color = col end
@@ -276,6 +312,8 @@ end
 local function evolve(oldTier, newTier)
 	local oldCol = tierColor(oldTier, os.clock())
 	local newCol = tierColor(newTier, os.clock())
+	evolving = true
+	task.delay(1.4, function() evolving = false end)
 	playSound(SONS.NucleoEvolui)
 	playSound(SONS.NucleoFanfarra, 0.55)
 	-- 1) carrega: a esfera encolhe e as faiscas sugam
@@ -310,6 +348,152 @@ local function evolve(oldTier, newTier)
 		showBanner(newTier, newCol)
 	end)
 end
+
+-- DANO NO NUCLEO -----------------------------------------------------------------------------
+-- tranco + tremida proporcionais ao dano, esfera pisca vermelho, faiscas, som; com a vida
+-- caindo aparecem rachaduras brilhando na esfera (e fumaca quando esta critico).
+local cracks = {}
+local smoke
+local R = esfSize.X / 2
+local function addCrack()
+	local dir = Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(-0.6, 1), rng:NextNumber(-1, 1))
+	dir = dir.Magnitude > 0.01 and dir.Unit or Vector3.yAxis
+	local pnt = currentBase.Position + dir * (R * 1.02)
+	local tan = dir:Cross(Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(-1, 1), rng:NextNumber(-1, 1))).Unit
+	local len = rng:NextNumber(R * 0.5, R * 0.95)
+	local p = neon({ Name = "Rachadura", Size = Vector3.new(0.24, 0.24, len), Color = Color3.fromRGB(255, 90, 40), Transparency = 1, Parent = workspace })
+	p.CFrame = CFrame.lookAt(pnt, pnt + tan)
+	floating[p] = currentBase:ToObjectSpace(p.CFrame)
+	TweenService:Create(p, TweenInfo.new(0.25), { Transparency = 0.1 }):Play()
+	table.insert(cracks, p)
+end
+local function updateCracks(ratio)
+	local want = ratio < 0.15 and 12 or ratio < 0.35 and 8 or ratio < 0.6 and 4 or 0
+	while #cracks < want do addCrack() end
+	while #cracks > want do
+		local p = table.remove(cracks)
+		floating[p] = nil
+		p:Destroy()
+	end
+	if ratio < 0.15 and not smoke then
+		smoke = Instance.new("ParticleEmitter")
+		smoke.Name = "FumacaCritico"
+		smoke.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		smoke.Color = ColorSequence.new(Color3.fromRGB(60, 50, 50))
+		smoke.Size = NumberSequence.new(1.2, 4)
+		smoke.Transparency = NumberSequence.new(0.4, 1)
+		smoke.Lifetime = NumberRange.new(1.5, 2.5)
+		smoke.Speed = NumberRange.new(2, 4)
+		smoke.Acceleration = Vector3.new(0, 4, 0)
+		smoke.Rate = 10
+		smoke.Parent = att
+	elseif ratio >= 0.15 and smoke then
+		smoke:Destroy(); smoke = nil
+	end
+end
+local lastHp = estado:GetAttribute("CoreVida")
+local lastHitSnd, lastCrackSnd = 0, 0
+estado:GetAttributeChangedSignal("CoreVida"):Connect(function()
+	local v = estado:GetAttribute("CoreVida") or 0
+	local maxV = math.max(1, estado:GetAttribute("CoreVidaMax") or 1)
+	local before = #cracks
+	if lastHp and v < lastHp then
+		local k = math.clamp((lastHp - v) / (maxV * 0.015), 0.3, 1.3)
+		punchV -= 3.2 * k
+		jitterUntil = os.clock() + 0.35
+		jitterAmp = 0.35 * k
+		hitK = 1
+		hitCol = Color3.fromRGB(255, 60, 50)
+		sparks:Emit(math.floor(4 + 6 * k))
+		if os.clock() - lastHitSnd > 0.18 and SONS.NucleoDano then
+			lastHitSnd = os.clock()
+			playSound(SONS.NucleoDano)
+		end
+	end
+	lastHp = v
+	updateCracks(v / maxV)
+	if #cracks > before and os.clock() - lastCrackSnd > 1 and SONS.NucleoRachando then
+		lastCrackSnd = os.clock()
+		playSound(SONS.NucleoRachando)
+	end
+end)
+
+-- SUCCAO DOS MATERIAIS ------------------------------------------------------------------------
+-- (os itens voando ficam no ColetaCliente; aqui o Nucleo reage: vortice no chao, giro rapido,
+-- uma "engolida" para cada item que chega e um estouro no fim)
+local function vortex(dur, col)
+	local folder = Instance.new("Folder")
+	folder.Name = "VorticeNucleo"
+	folder.Parent = workspace
+	local arms = {}
+	for a = 1, 3 do
+		for j = 1, 12 do
+			table.insert(arms, { p = neon({ Name = "Espiral", Size = Vector3.new(1.3, 0.1, 0.45), Color = col, Transparency = 1, Parent = folder }), a = a, f = j / 12 })
+		end
+	end
+	local column = neon({ Name = "Coluna", Shape = Enum.PartType.Cylinder, Size = Vector3.new(center.Y - floorY, 1.6, 1.6), Color = col, Transparency = 1, Parent = folder,
+		CFrame = CFrame.new(center.X, (center.Y + floorY) / 2, center.Z) * CFrame.Angles(0, 0, math.rad(90)) })
+	local t0 = os.clock()
+	local total = dur * 1.25
+	local conn
+	conn = RunService.RenderStepped:Connect(function()
+		local u = (os.clock() - t0) / total
+		if u >= 1 then conn:Disconnect(); folder:Destroy() return end
+		local fadeIn = math.clamp(u / 0.15, 0, 1)
+		local fadeOut = math.clamp((1 - u) / 0.25, 0, 1)
+		local vis = fadeIn * fadeOut
+		local Rv = 15 * (1 - 0.7 * u)
+		for _, e in ipairs(arms) do
+			local r = 1.5 + Rv * e.f
+			local ang = e.a / 3 * math.pi * 2 + e.f * 2.8 - os.clock() * 6
+			local pnt = Vector3.new(center.X + math.cos(ang) * r, floorY + 0.25, center.Z + math.sin(ang) * r)
+			e.p.CFrame = CFrame.lookAt(pnt, pnt + Vector3.new(-math.sin(ang), 0, math.cos(ang)))
+			e.p.Transparency = 1 - vis * (1 - e.f * 0.65)
+		end
+		column.Transparency = 1 - vis * (0.45 + 0.2 * math.sin(os.clock() * 30))
+		column.Size = Vector3.new(column.Size.X, 1.2 + 0.6 * math.sin(os.clock() * 18), 1.2 + 0.6 * math.sin(os.clock() * 18))
+	end)
+end
+
+local lastGulp = 0
+local function gulp(color, strong)
+	punchV += strong and 4.5 or 2.2
+	hitK = strong and 1 or 0.75
+	hitCol = color
+	sparks:Emit(strong and 30 or 4)
+	if os.clock() - lastGulp > 0.07 and SONS.NucleoEngole then
+		lastGulp = os.clock()
+		local s = Instance.new("Sound")
+		s.SoundId = SONS.NucleoEngole.Id
+		s.Volume = (SONS.NucleoEngole.V or 0.5) * (strong and 1.3 or 0.7)
+		s.PlaybackSpeed = (SONS.NucleoEngole.P or 1) * rng:NextNumber(0.9, 1.25)
+		s.Parent = SoundService
+		s:Play()
+		Debris:AddItem(s, 3)
+	end
+end
+
+remotes:WaitForChild("Efeito").OnClientEvent:Connect(function(kind, _, list)
+	if kind ~= "Sugar" or typeof(list) ~= "table" then return end
+	local n = #list
+	if n == 0 then return end
+	local dur = SobCfg.Succao.Duracao
+	local col = tierColor(tier, os.clock())
+	spinUntil = os.clock() + dur
+	vortex(dur, col)
+	-- mesmo calculo de tempo do voo no ColetaCliente: cada item chega em (i-1)*atraso + 75% da duracao
+	local last = 0
+	for i, entry in ipairs(list) do
+		local arrive = (i - 1) * math.min(0.06, 0.5 / n) + dur * 0.75
+		last = math.max(last, arrive)
+		local info = typeof(entry) == "table" and SobCfg.Itens[entry.kind]
+		task.delay(arrive, function() gulp(info and info.Cor or col, false) end)
+	end
+	task.delay(last + 0.08, function()
+		gulp(Color3.new(1, 1, 1), true)
+		shockwave(col, 0, 26, 0.55)
+	end)
+end)
 
 estado:GetAttributeChangedSignal("CoreTier"):Connect(function()
 	local nt = estado:GetAttribute("CoreTier") or 1

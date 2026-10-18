@@ -14,9 +14,42 @@ return {
 	},
 
 	-- Ordem em que aparecem na loja
-	Ordem = { "Barricada", "BarricadaReforcada", "Muro", "Portao", "Mina", "TorretaBasica", "TorretaGelo", "LancaChamas", "TorretaPesada", "Drone", "GeradorEscudo" },
+	Ordem = { "Barricada", "BarricadaReforcada", "Muro", "MuroTiro", "Portao", "PisoReforcado", "Teto", "Rampa",
+		"Mina", "Espinhos", "Lentidao", "Quicador", "LancaDardos", "Repulsor", "Prensa", "EmissorGas",
+		"TorretaBasica", "TorretaGelo", "LancaChamas", "TorretaPesada", "Drone", "GeradorEscudo",
+		"GradeEletrica", "CampoForca", "Cupula" },
 
 	Estruturas = {
+		-- PECAS DE GRADE (fechar a base em 360°; piso/teto/rampa podem ir em cima de outras pecas)
+		PisoReforcado = { Nome = "Piso reforçado", Custo = { Madeira = 4, Pedra = 4 }, Vida = 500, Limite = 40, TierMin = 1, Tamanho = Vector3.new(8, 1.2, 8), Tipo = "Bloqueio",
+			Empilhavel = true, NaoBloqueia = true },
+		Teto = { Nome = "Teto / cobertura", Custo = { Madeira = 4, Pedra = 4 }, Vida = 450, Limite = 40, TierMin = 1, Tamanho = Vector3.new(8, 1.1, 8), Tipo = "Bloqueio",
+			Empilhavel = true, NaoBloqueia = true },
+		Rampa = { Nome = "Rampa de acesso", Custo = { Madeira = 5, Pedra = 5 }, Vida = 450, Limite = 12, TierMin = 1, Tamanho = Vector3.new(8, 6, 10), Tipo = "Bloqueio",
+			Empilhavel = true },
+		MuroTiro = { Nome = "Muro de tiro (com fenda)", Custo = { Pedra = 7, Madeira = 2 }, Vida = 600, Limite = 20, TierMin = 1, Tamanho = Vector3.new(10, 7, 3), Tipo = "Bloqueio" },
+		-- ARMADILHAS (nao bloqueiam: os veritys passam por cima/por baixo e tomam o efeito)
+		Espinhos = { Nome = "Placa de espinhos", Custo = { Madeira = 3, Pedra = 5 }, Vida = 300, Limite = 16, TierMin = 1, Tamanho = Vector3.new(6, 1, 6), Tipo = "Armadilha",
+			NaoBloqueia = true, Raio = 3.6, Dano = 30, Intervalo = 0.5 },        -- verity (60) morre em ~1 s em cima
+		Lentidao = { Nome = "Placa de gelo (lentidão)", Custo = { Madeira = 4, Pedra = 2 }, Vida = 300, Limite = 16, TierMin = 1, Tamanho = Vector3.new(6, 0.6, 6), Tipo = "Armadilha",
+			NaoBloqueia = true, Raio = 3.6, Lentidao = 0.5, Dano = 6 },         -- gelo queima: 6 a cada 0,25 s
+		Quicador = { Nome = "Quicador", Custo = { Madeira = 6, Pedra = 3 }, Vida = 300, Limite = 10, TierMin = 1, Tamanho = Vector3.new(4, 1.4, 4), Tipo = "Armadilha",
+			NaoBloqueia = true, Raio = 3, Forca = 18, Cadencia = 1.5, Dano = 35 },
+		LancaDardos = { Nome = "Lança-dardos de parede", Custo = { Madeira = 6, Pedra = 6 }, Vida = 350, Limite = 10, TierMin = 2, Tamanho = Vector3.new(4, 4, 2), Tipo = "Armadilha",
+			Alcance = 26, Largura = 2.5, Dano = 55, Cadencia = 0.9 },
+		Repulsor = { Nome = "Repulsor de parede", Custo = { Madeira = 8, Pedra = 8 }, Vida = 400, Limite = 6, TierMin = 2, Tamanho = Vector3.new(4, 4, 2), Tipo = "Armadilha",
+			Alcance = 18, Largura = 5, Forca = 16, Cadencia = 4, Dano = 45 },
+		Prensa = { Nome = "Prensa de impacto", Custo = { Madeira = 10, Pedra = 14 }, Vida = 500, Limite = 6, TierMin = 3, Tamanho = Vector3.new(8, 9, 8), Tipo = "Armadilha",
+			NaoBloqueia = true, Dano = 320, Cadencia = 3 },                     -- esmaga ate um cruelty
+		EmissorGas = { Nome = "Emissor de gás", Custo = { Madeira = 10, Pedra = 10 }, Vida = 450, Limite = 6, TierMin = 3, Tamanho = Vector3.new(8, 9, 8), Tipo = "Armadilha",
+			NaoBloqueia = true, Raio = 5.5, Dano = 15, Intervalo = 0.5 },
+		-- DEFESAS AVANCADAS (liberam com a evolucao do Nucleo)
+		GradeEletrica = { Nome = "Grade eletrificada", Custo = { Madeira = 10, Pedra = 16 }, Vida = 800, Limite = 4, TierMin = 2, Tamanho = Vector3.new(12, 8, 3), Tipo = "Armadilha",
+			Portao = true, Raio = 5, Dano = 45, Forca = 6, Intervalo = 0.8 },
+		CampoForca = { Nome = "Campo de força", Custo = { Madeira = 12, Pedra = 18 }, Vida = 900, Limite = 6, TierMin = 3, Tamanho = Vector3.new(10, 7, 1.2), Tipo = "Bloqueio",
+			PassaJogador = true },
+		Cupula = { Nome = "Cúpula protetora", Custo = { Madeira = 20, Pedra = 30 }, Vida = 1500, Limite = 1, TierMin = 4, Tamanho = Vector3.new(5, 4, 5), Tipo = "Suporte",
+			RaioDomo = 18 },
 		Barricada = { Nome = "Barricada de madeira", Custo = { Madeira = 4 }, Vida = 300, Limite = 25, TierMin = 1, Tamanho = Vector3.new(8, 5, 2), Tipo = "Bloqueio" },
 		BarricadaReforcada = { Nome = "Barricada reforçada", Custo = { Madeira = 8, Pedra = 3 }, Vida = 800, Limite = 20, TierMin = 3, Tamanho = Vector3.new(8, 6, 2.5), Tipo = "Bloqueio" },
 		Muro = { Nome = "Muro de pedra", Custo = { Pedra = 6 }, Vida = 650, Limite = 20, TierMin = 1, Tamanho = Vector3.new(10, 7, 3), Tipo = "Bloqueio" },

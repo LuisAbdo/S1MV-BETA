@@ -2,24 +2,35 @@
 -- Estilo "99 Noites na Floresta": de dia coleta madeira/pedra, de noite defende o Nucleo.
 return {
 	-- MAPA POR CHUNKS ---------------------------------------------------------------
+	-- O chao e feito de PECAS com studs: colunas de 6x6 studs com altura por ruido suave,
+	-- em degraus de 1 stud (colinas naturais). So uma clareira plana em volta do Nucleo;
+	-- as arvores nascem logo depois dela.
 	Chunk = {
 		Tamanho = 48,          -- cada chunk e um quadrado de 48x48 studs
-		BaseRaio = 1,          -- chunks da base (0 = so o do Nucleo; 1 = 3x3 ao redor dele)
+		Sincrono = 1,          -- chunks ate esta distancia do Nucleo ficam prontos antes de todo mundo nascer
 		RaioGeracao = 4,       -- gera ate 4 chunks em volta de cada jogador (a neblina esconde a borda)
 		RaioInicial = 4,       -- ja nasce pronto ate 4 chunks do Nucleo (onde a horda aparece)
 		RaioMaximo = 10,       -- limite do mapa (10 chunks = ~500 studs); depois disso, neblina
 		Intervalo = 0.4,       -- segundos entre verificacoes de geracao
 		PorPasso = 3,          -- chunks gerados por verificacao (evita travadas)
-		AlturaChao = 21,       -- Y do topo do chao (igual a base)
-		VariacaoAltura = 0.8,  -- degrauzinho entre chunks (como no video)
-		-- quantidade por chunk: { min, max }
-		Arvores = { 2, 5 },
-		Rochas = { 0, 2 },
-		Decoracao = { 3, 7 },
-		ChanceClareira = 0.15, -- chunk sem arvores (campo aberto)
-		CoresGrama = {
-			Color3.fromRGB(86, 150, 62), Color3.fromRGB(78, 140, 58), Color3.fromRGB(94, 158, 66), Color3.fromRGB(82, 146, 70),
+		AlturaChao = 21,       -- Y do chao na clareira do Nucleo
+		Relevo = {
+			Altura = 20,       -- diferenca maxima de altura das colinas (studs)
+			Escala = 190,      -- tamanho das colinas (maior = mais suave, degraus mais baixos)
+			Celula = 6,        -- tamanho de cada coluna do chao (studs)
+			Fundo = 16,        -- quanto as colunas descem abaixo do chao da clareira
+			Clareira = 32,     -- raio plano em volta do Nucleo (sem arvores)
+			AnelFloresta = 0.55, -- densidade minima da mata logo depois da clareira (arvores ao redor do Nucleo)
+			Rampa = 80,        -- distancia em que o relevo vai de plano a altura cheia
+			SpawnLivre = 10,   -- raio plano e sem arvores em volta do spawn dos jogadores
+			CasaDistancia = { 220, 300 }, -- distancia da Casa do Mercador ate o Nucleo (longe do spawn)
+			CasaClareira = 42, -- raio plano e sem arvores em volta da Casa (a plataforma tem ~60 studs)
 		},
+		-- quantidade por chunk: { min, max } (a densidade varia por "manchas" de floresta)
+		Arvores = { 2, 6 },
+		Rochas = { 0, 2 },
+		Decoracao = { 3, 6 },
+		DistanciaArvores = 7,  -- espaco minimo entre arvores
 	},
 
 	-- RECURSOS ------------------------------------------------------------------------
@@ -45,6 +56,42 @@ return {
 	Mochila = 5,              -- quantos itens cabem na mochila (tecla E no item)
 	ArrastarAlcance = 14,     -- distancia maxima para comecar a arrastar
 
+	-- MERCADOR (Casa na floresta) ------------------------------------------------------
+	-- Melhorias pessoais pagas com o ESTOQUE do Nucleo (madeira/pedra levadas ao Nucleo).
+	Mercador = {
+		DistanciaLoja = 14,
+		Itens = {
+			{ Id = "Mochila", Nome = "Mochila maior", Texto = "+3 espaços na mochila",
+				Niveis = { { Madeira = 6 }, { Madeira = 10, Pedra = 4 }, { Madeira = 16, Pedra = 10 } }, PorNivel = 3 },
+			{ Id = "Machado", Nome = "Machado afiado", Texto = "Corta e quebra mais rápido",
+				Niveis = { { Madeira = 5, Pedra = 5 }, { Madeira = 10, Pedra = 10 }, { Madeira = 18, Pedra = 16 } },
+				DanoPorNivel = 1, CooldownPorNivel = 0.06 },
+			{ Id = "Mapa", Nome = "Mapa da floresta", Texto = "Minimapa com você, o Núcleo e a Casa",
+				Niveis = { { Madeira = 8, Pedra = 6 } } },
+		},
+	},
+
+	-- CORRIDA (Shift) -----------------------------------------------------------------
+	-- Stamina fica no servidor; o cliente so pede para correr e mostra a barra.
+	Corrida = {
+		Multiplicador = 1.55,  -- velocidade correndo = base x isto (16 -> ~25)
+		Maxima = 100,
+		Gasto = 22,            -- stamina por segundo correndo (~4,5 s de corrida cheia)
+		Recupera = 18,         -- stamina por segundo parado/andando
+		AtrasoRecuperar = 0.8, -- segundos sem correr antes de recuperar
+		MinimoVoltar = 25,     -- se zerar, so corre de novo depois de recuperar isto
+	},
+
+	-- PRESENCA DOS CHEFES (Verity Boss e Glitcity) ---------------------------------------
+	-- Quanto mais perto, mais a tela treme, as bordas escurecem e o coracao bate mais rapido.
+	Presenca = {
+		Longe = 110,           -- a partir desta distancia comeca a sentir
+		Perto = 10,            -- intensidade maxima
+		Tremor = 1.1,          -- graus de tremor no maximo
+		Passo = 0.55,          -- segundos entre os "passos" pesados (tranco extra)
+		Vinheta = 0.7,         -- quanto as bordas escurecem no maximo (0-1)
+	},
+
 	-- NUCLEO (estoque) ----------------------------------------------------------------
 	Succao = {
 		Raio = 26,             -- clicar no Nucleo suga os itens soltos ate esta distancia
@@ -53,6 +100,17 @@ return {
 		Duracao = 0.9,         -- tempo da animacao de sugar
 	},
 	EstoqueInicial = { Madeira = 0, Pedra = 0 },
+
+	-- GLITCITY (primeiro chefe, noite 15) ------------------------------------------------
+	-- Vida/dano/tamanho ficam em Config/Enemies.Tipos.Glitcity.
+	Glitcity = {
+		Wave = 15,
+		DistanciaSurgir = 70,          -- surge na floresta, a esta distancia do Nucleo
+		RaioLivre = 22,                -- procura o trecho com menos arvores neste raio (cutscene limpa)
+		Cutscene = { Glitch = 3, Camera = 1.4, Blocos = 2.2, Texto = 2.6 }, -- segundos de cada etapa
+		EMP = { Intervalo = 11, Raio = 32, Duracao = 4 },        -- desliga as torres perto
+		Voxels = { Intervalo = 9, Quantidade = 8, Raio = 10, Tamanho = 3, Duracao = 7 }, -- barreiras
+	},
 
 	-- VERITY BOSS (noite) ----------------------------------------------------------------
 	Boss = {

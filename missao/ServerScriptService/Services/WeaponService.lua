@@ -96,13 +96,10 @@ local function giveTools(player, st, equip)
 	tool:SetAttribute("Slot", 1)
 	tool:SetAttribute("Arma", w.Id)
 	tool.Parent = backpack
-	local hammer = Modelos.MakeTool("Martelo", "MARTELO")
-	hammer:SetAttribute("Slot", 2)
-	hammer:SetAttribute("Arma", "Martelo")
-	hammer.Parent = backpack
+	-- (o martelo de reparo saiu do jogo)
 	-- todo jogador nasce com o machado de coleta (madeira e pedra)
 	local axe = Modelos.MakeTool("Machado", "MACHADO")
-	axe:SetAttribute("Slot", 3)
+	axe:SetAttribute("Slot", 2)
 	axe:SetAttribute("Arma", "Machado")
 	axe.Parent = backpack
 	if wasEquipped then
@@ -121,10 +118,14 @@ local function applyStats(player, st, heal)
 	WeaponService:RefreshSpeed(player)
 end
 
+local CorridaMult = (require(game:GetService("ReplicatedStorage").Shared.Config.Sobrevivencia).Corrida or {}).Multiplicador
+
 function WeaponService:RefreshSpeed(player)
 	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
 	local speed = Cfg.VelocidadeBaseJogador * (player:GetAttribute("MultVelocidade") or 1)
+	-- correndo (CorridaService controla a stamina e liga este atributo)
+	if player:GetAttribute("Correndo") == true then speed *= (CorridaMult or 1.55) end
 	hum:SetAttribute("VelocidadeBase", speed)
 	if (hum:GetAttribute("AtordoadoAte") or 0) < os.clock() then hum.WalkSpeed = speed end
 end
