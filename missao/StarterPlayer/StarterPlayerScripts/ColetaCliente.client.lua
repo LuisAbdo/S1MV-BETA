@@ -180,7 +180,8 @@ end
 local function chop(screenPos)
 	if not equippedAxe() or player:GetAttribute("Construindo") then return end
 	local now = os.clock()
-	if now - lastSwing < Cfg.Machado.Cooldown then return end
+	local cd = math.max(0.2, Cfg.Machado.Cooldown - (player:GetAttribute("NivelMachado") or 0) * 0.06)
+	if now - lastSwing < cd then return end
 	lastSwing = now
 	swing(player.Character)
 	local target = pickTarget(screenPos)
@@ -446,6 +447,7 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local panel = Instance.new("Frame")
 panel.Name = "Estoque"
+panel.Visible = false -- o estoque agora aparece so no Nucleo (billboard sutil, de perto)
 panel.AnchorPoint = Vector2.new(1, 0)
 panel.Position = UDim2.new(1, -20, 0, 64)
 panel.Size = UDim2.fromOffset(250, 34)
@@ -485,6 +487,126 @@ for _, k in ipairs({ "Madeira", "Pedra" }) do
 	estado:GetAttributeChangedSignal("Estoque" .. k):Connect(function() refreshStock(k, true) end)
 end
 
+-- ESTOQUE NO NUCLEO: billboard discreto que so aparece quando voce chega perto -----------------
+local NUCLEO_PERTO = 26
+local coreBB, coreLbl, coreStroke
+local function coreSphere()
+	local m = CollectionService:GetTagged("Nucleo")[1]
+	return m and m:FindFirstChild("NucleoEsfera")
+end
+local function stockText()
+	local m = estado:GetAttribute("EstoqueMadeira") or 0
+	local p = estado:GetAttribute("EstoquePedra") or 0
+	return '<font color="#D8A066">' .. m .. ' madeira</font>   <font color="#B9BCC6">' .. p .. " pedra</font>"
+end
+local function ensureCoreBB()
+	if coreBB and coreBB.Parent then return coreBB end
+	local esf = coreSphere()
+	if not esf then return nil end
+	coreBB = Instance.new("BillboardGui")
+	coreBB.Name = "EstoqueNucleo"
+	coreBB.Adornee = esf
+	coreBB.Size = UDim2.fromOffset(220, 26)
+	coreBB.StudsOffsetWorldSpace = Vector3.new(0, 6.5, 0)
+	coreBB.LightInfluence = 0
+	coreBB.MaxDistance = NUCLEO_PERTO + 6
+	coreBB.Parent = gui
+	coreLbl = Instance.new("TextLabel")
+	coreLbl.Size = UDim2.fromScale(1, 1)
+	coreLbl.BackgroundTransparency = 1
+	coreLbl.FontFace = FONT
+	coreLbl.TextSize = 17
+	coreLbl.RichText = true
+	coreLbl.TextTransparency = 1
+	coreLbl.TextColor3 = Color3.new(1, 1, 1)
+	coreLbl.Parent = coreBB
+	coreStroke = Instance.new("UIStroke"); coreStroke.Thickness = 1.5; coreStroke.Color = Color3.fromRGB(15, 15, 20); coreStroke.Transparency = 1; coreStroke.Parent = coreLbl
+	return coreBB
+end
+local coreShown = false
+local function setCoreShown(on)
+	if on == coreShown or not coreLbl then return end
+	coreShown = on
+	tween(coreLbl, 0.35, { TextTransparency = on and 0.15 or 1 })
+	tween(coreStroke, 0.35, { Transparency = on and 0.5 or 1 })
+end
+for _, k in ipairs({ "EstoqueMadeira", "EstoquePedra" }) do
+	estado:GetAttributeChangedSignal(k):Connect(function()
+		if coreLbl then
+			coreLbl.Text = stockText()
+			local sc = coreLbl:FindFirstChildOfClass("UIScale") or Instance.new("UIScale", coreLbl)
+			sc.Scale = 1.2
+			tween(sc, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
+		end
+	end)
+end
+
+-- FEIXE DE LUZ ATE A BASE: so para quem esta longe (cada jogador ve o seu) ---------------------
+-- BillboardGui "sempre por cima": nao some na neblina branca
+local LONGE = 85
+local beam = Instance.new("BillboardGui")
+beam.Name = "FeixeBase"
+beam.AlwaysOnTop = true
+beam.LightInfluence = 0
+beam.Size = UDim2.new(5, 0, 260, 0)          -- 5 x 260 studs
+beam.StudsOffsetWorldSpace = Vector3.new(0, 128, 0)
+beam.Enabled = false
+beam.Parent = gui
+local beamCore = Instance.new("Frame")
+beamCore.Size = UDim2.fromScale(1, 1)
+beamCore.BackgroundColor3 = Color3.fromRGB(150, 235, 255)
+beamCore.BorderSizePixel = 0
+beamCore.BackgroundTransparency = 1
+beamCore.Parent = beam
+local bg1 = Instance.new("UIGradient")
+bg1.Rotation = 90
+bg1.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.55, 0.35), NumberSequenceKeypoint.new(1, 0.15) })
+bg1.Parent = beamCore
+local beamTag = Instance.new("BillboardGui")
+beamTag.Name = "FeixeTexto"
+beamTag.AlwaysOnTop = true
+beamTag.LightInfluence = 0
+beamTag.Size = UDim2.fromOffset(160, 36)
+beamTag.StudsOffsetWorldSpace = Vector3.new(0, 14, 0)
+beamTag.Enabled = false
+beamTag.Parent = gui
+local beamLbl = Instance.new("TextLabel")
+beamLbl.Size = UDim2.fromScale(1, 1)
+beamLbl.BackgroundTransparency = 1
+beamLbl.FontFace = FONT
+beamLbl.TextSize = 16
+beamLbl.TextColor3 = Color3.fromRGB(200, 245, 255)
+beamLbl.Parent = beamTag
+local bst2 = Instance.new("UIStroke"); bst2.Thickness = 2; bst2.Color = Color3.fromRGB(10, 30, 45); bst2.Parent = beamLbl
+
+local beamAcc = 0
+RunService.Heartbeat:Connect(function(dt)
+	beamAcc += dt
+	if beamAcc < 0.1 then return end
+	beamAcc = 0
+	local esf = coreSphere()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not esf or not root then beam.Enabled = false; beamTag.Enabled = false return end
+	local d = Vector3.new(esf.Position.X - root.Position.X, 0, esf.Position.Z - root.Position.Z).Magnitude
+	-- estoque de perto
+	if ensureCoreBB() then
+		if coreLbl.Text == "" then coreLbl.Text = stockText() end
+		setCoreShown(d <= NUCLEO_PERTO)
+	end
+	-- feixe de longe
+	local far = d >= LONGE
+	beam.Adornee = esf
+	beamTag.Adornee = esf
+	beam.Enabled = far
+	beamTag.Enabled = far
+	if far then
+		local k = math.clamp((d - LONGE) / 60, 0, 1)
+		local pulse = 0.5 + math.sin(os.clock() * 2.2) * 0.08
+		beamCore.BackgroundTransparency = 1 - (0.45 + 0.4 * k) * (pulse + 0.5)
+		beamLbl.Text = "BASE  " .. math.floor(d) .. "m"
+	end
+end)
+
 -- mochila (aparece quando tem algo)
 local bag = Instance.new("TextLabel")
 bag.Name = "Mochila"
@@ -502,8 +624,9 @@ local bst = Instance.new("UIStroke"); bst.Thickness = 2; bst.Color = Color3.from
 local function refreshBag()
 	local n = player:GetAttribute("MochilaTotal") or 0
 	bag.Visible = n > 0
-	bag.Text = "MOCHILA " .. n .. "/" .. Cfg.Mochila .. "  •  clique no Núcleo para depositar"
-	bag.TextColor3 = n >= Cfg.Mochila and Color3.fromRGB(255, 120, 90) or Color3.fromRGB(255, 230, 160)
+	local cap = Cfg.Mochila + (player:GetAttribute("NivelMochila") or 0) * 3
+	bag.Text = "MOCHILA " .. n .. "/" .. cap .. "  •  clique no Núcleo para depositar"
+	bag.TextColor3 = n >= cap and Color3.fromRGB(255, 120, 90) or Color3.fromRGB(255, 230, 160)
 end
 player:GetAttributeChangedSignal("MochilaTotal"):Connect(refreshBag)
 refreshBag()
