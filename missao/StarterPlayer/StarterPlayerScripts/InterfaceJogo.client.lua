@@ -120,6 +120,10 @@ local voteMax = label({ Position = UDim2.fromOffset(0, 27), Size = UDim2.new(1, 
 local autoBtn = new("TextButton", { Position = UDim2.new(0.5, 257, 0, 54), Size = UDim2.fromOffset(191, 30), BackgroundColor3 = Color3.fromRGB(28, 28, 30), BorderSizePixel = 0, AutoButtonColor = true, Text = "" }, gui)
 label({ Position = UDim2.fromOffset(10, 0), Size = UDim2.new(1, -60, 1, 0), Text = "AUTO-SKIP", TextSize = 13, FontFace = MONO, TextColor3 = C.grey, TextXAlignment = Enum.TextXAlignment.Left }, autoBtn)
 local autoState = label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 0), Size = UDim2.fromOffset(40, 30), Text = "OFF", TextSize = 13, FontFace = MONO, TextColor3 = C.grey, TextXAlignment = Enum.TextXAlignment.Right }, autoBtn)
+-- sem waves/skip na tela: o jogo so conta os dias (DIA 1, DIA 2...)
+skipBtn.Visible = false
+voteBox.Visible = false
+autoBtn.Visible = false
 skipBtn.MouseButton1Click:Connect(function() remotes.VotarPular:FireServer() end)
 autoBtn.MouseButton1Click:Connect(function()
 	remotes.AutoSkip:FireServer(not (player:GetAttribute("AutoSkip") == true))
@@ -193,7 +197,8 @@ local shopBtn = new("TextButton", { Position = UDim2.fromOffset(20, 524), Size =
 
 -- DIREITA: HABILIDADES
 label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -25, 0, 144), Size = UDim2.fromOffset(140, 14), Text = "HABILIDADES", TextSize = 11, FontFace = MONO, TextXAlignment = Enum.TextXAlignment.Right }, gui)
-local AB = { "G", "Z", "X", "C", "Q" }
+-- (o martelo de reparo saiu do jogo: o card "G" nao existe mais)
+local AB = { "Z", "X", "C", "Q" }
 local abCards = {}
 for i, slot in ipairs(AB) do
 	local isUlt = slot == "Q"
@@ -201,11 +206,8 @@ for i, slot in ipairs(AB) do
 	local keyText = slot == "G" and "G" or CCfg.Teclas[slot]
 	abCards[slot] = card(gui, UDim2.new(1, -25, 0, 160 + (i - 1) * 108), Vector2.new(1, 0), colors, keyText, 84)
 end
-setIcon(abCards.G, "Martelo", { Size = UDim2.new(1, -16, 1, -24), Position = UDim2.fromOffset(8, 6), ZIndex = 3, Dir = Vector3.new(1, 0.5, -0.6) })
-abCards.G.price.Text = "TOOL"
-abCards.G.name.Text = "Reparar"
 -- medidor da ULT
-local ultMeter = new("Frame", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -115, 0, 160 + 4 * 108), Size = UDim2.fromOffset(26, 106), BackgroundTransparency = 1 }, gui)
+local ultMeter = new("Frame", { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -115, 0, 160 + 3 * 108), Size = UDim2.fromOffset(26, 106), BackgroundTransparency = 1 }, gui)
 local ultNum = label({ Size = UDim2.fromOffset(26, 18), BackgroundTransparency = 0, BackgroundColor3 = C.black, Text = "0", TextSize = 12, TextColor3 = C.orange }, ultMeter)
 local ultSegs = {}
 for i = 1, 10 do
@@ -363,7 +365,7 @@ end
 for _, slot in ipairs({ "Z", "X", "C", "Q" }) do
 	abCards[slot].holder.MouseButton1Click:Connect(function() useAbility(slot) end)
 end
-abCards.G.holder.MouseButton1Click:Connect(function()
+if abCards.G then abCards.G.holder.MouseButton1Click:Connect(function()
 	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
 	for _, holder in ipairs({ player:FindFirstChildOfClass("Backpack"), player.Character }) do
@@ -374,7 +376,7 @@ abCards.G.holder.MouseButton1Click:Connect(function()
 			end
 		end
 	end
-end)
+end) end
 
 local keyMap = {
 	[Enum.KeyCode.C] = buyHealth, [Enum.KeyCode.V] = buyWeapon,
@@ -529,37 +531,32 @@ RunService.RenderStepped:Connect(function(dt)
 	local fase = estado:GetAttribute("Fase") or "Aguardando"
 	local wave = estado:GetAttribute("Wave") or 0
 	-- topo
+	-- topo: so o contador de dias (sem waves, sem contagem, sem chefe)
+	nextGroup.Visible = false
+	boss.Visible = false
 	if fase == "Dia" then
-		local left = math.max(0, math.ceil((estado:GetAttribute("FimFase") or 0) - now))
-		waveGroup.Visible = false
-		nextGroup.Visible = true
-		nextNum.Text = tostring(left)
-		nextNum.Size = UDim2.fromOffset(math.max(46, #tostring(left) * 18 + 16), 40)
+		waveGroup.Visible = true
+		waveText.Text = "DIA " .. math.max(1, wave)
 		leftText.Text = ""
-		boss.Visible = false
-		coreBar.Position = UDim2.new(0.5, 0, 0, 76)
+		coreBar.Position = UDim2.new(0.5, 0, 0, 58)
 	elseif fase == "Noite" then
 		waveGroup.Visible = true
-		nextGroup.Visible = false
-		waveText.Text = "WAVE " .. wave
-		boss.Visible = true
-		coreBar.Position = UDim2.new(0.5, 0, 0, 108)
+		waveText.Text = "NOITE " .. wave
+		coreBar.Position = UDim2.new(0.5, 0, 0, 58)
 		local r = estado:GetAttribute("Restantes") or estado:GetAttribute("InimigosVivos") or 0
-		local dawn = math.max(0, math.ceil((estado:GetAttribute("FimFase") or 0) - now))
-		leftText.Text = r .. (r == 1 and " verity" or " veritys") .. (dawn > 0 and ("  •  amanhece em " .. dawn .. "s") or "")
+		leftText.Text = r > 0 and (r .. (r == 1 and " verity" or " veritys")) or ""
 	else
 		waveGroup.Visible = true
 		nextGroup.Visible = false
-		waveText.Text = fase == "Derrota" and "DERROTA" or "WAVE " .. wave
+		waveText.Text = fase == "Derrota" and "DERROTA" or "DIA " .. math.max(1, wave)
 		if fase == "Aguardando" and estado:GetAttribute("EsperandoGrupo") then
 			waveText.Text = "GRUPO " .. (estado:GetAttribute("GrupoChegou") or 0) .. "/" .. (estado:GetAttribute("GrupoTotal") or 1)
 			leftText.Text = "aguardando o grupo chegar..."
 		end
 		leftText.Text = ""
-		boss.Visible = true
-		coreBar.Position = UDim2.new(0.5, 0, 0, 108)
+		coreBar.Position = UDim2.new(0.5, 0, 0, 58)
 	end
-	if fase == "Noite" and (lastPhase ~= "Noite" or lastWave ~= wave) then playStart() end
+	leftText.Position = UDim2.new(0.5, 0, 0, 84)
 	lastPhase, lastWave = fase, wave
 	-- chefe
 	bossName.Text = estado:GetAttribute("ProximoChefe") or "O REI VERITY"

@@ -109,10 +109,27 @@ function WaveService:GetPlan(w)
 	return plans[w], w
 end
 
+-- outros servicos podem segurar a noite (ex.: chefe vivo): funcoes que retornam quantos faltam
+WaveService.ExtraVivos = {}
+WaveService.AntesDaNoite = {}   -- callbacks(wave, myRunCheck) chamados antes da horda (cutscenes)
+local function extraAlive()
+	local n = 0
+	for _, f in ipairs(WaveService.ExtraVivos) do
+		local ok, v = pcall(f)
+		if ok and typeof(v) == "number" then n += v end
+	end
+	return n
+end
+
 local function runNight(myRun)
+	-- a noite acaba quando a horda inteira cai (NoiteDuracao so define o ritmo dos grupos)
 	local nightLen = Cfg.NoiteDuracao or 90
-	local nightEnd = os.clock() + nightLen
-	setPhase("Noite", nightLen)
+	for _, cb in ipairs(WaveService.AntesDaNoite) do
+		local ok, err = pcall(cb, wave, function() return runId == myRun end)
+		if not ok then warn("[WaveService] AntesDaNoite: " .. tostring(err)) end
+	end
+	if runId ~= myRun then return false end
+	setPhase("Noite")
 	tweenLight("Noite")
 	Core:BeginWave()
 	votes = {}
@@ -121,7 +138,7 @@ local function runNight(myRun)
 	plans[wave] = nil
 	local idx = 1
 	local function remaining()
-		estado:SetAttribute("Restantes", Enemy:CountAlive() + math.max(0, #plan - idx + 1))
+		estado:SetAttribute("Restantes", Enemy:CountAlive() + math.max(0, #plan - idx + 1) + extraAlive())
 	end
 	local hpMult = hpMultFor(wave)
 	log(string.format("Wave %d: %d inimigos, vida x%.2f", wave, #plan, hpMult))
@@ -136,7 +153,7 @@ local function runNight(myRun)
 	local groups = math.max(1, math.ceil(#plan / avgGroup))
 	local spread = math.max(0, nightLen * (Cfg.NoiteEspalhar or 0.6) - 2)
 	local gap = math.clamp(spread / groups, Cfg.IntervaloGrupos.Min * pace, 14)
-	while runId == myRun and idx <= #plan and os.clock() < nightEnd do
+	while runId == myRun and idx <= #plan do
 		local groupSize = rng:NextInteger(Cfg.Grupo.Min + extra, Cfg.Grupo.Max + extra * 2)
 		-- cada inimigo nasce num ponto aleatorio; as vezes em dupla com o anterior
 		local base = Enemy:PickSpawnPoint()
@@ -153,19 +170,16 @@ local function runNight(myRun)
 		end
 		if idx <= #plan then task.wait(gap * rng:NextNumber(0.75, 1.25)) end
 	end
-	-- a noite tem tempo fixo; o time so pode pular quando a horda inteira ja caiu
-	while runId == myRun and os.clock() < nightEnd do
+	-- a noite acaba assim que a horda inteira (e o chefe, se houver) cai
+	local limite = os.clock() + (Cfg.NoiteMaxima or 600)
+	while runId == myRun and (Enemy:CountAlive() > 0 or extraAlive() > 0) do
 		remaining()
-		if Enemy:CountAlive() == 0 and idx > #plan and countVotes() >= votesNeeded() then
-			return true
+		if os.clock() > limite then
+			-- trava de seguranca: inimigo preso em algum lugar nao segura a noite para sempre
+			Enemy:ClearAll()
+			break
 		end
 		task.wait(0.25)
-	end
-	if runId ~= myRun then return false end
-	-- amanheceu: quem sobrou recua para a floresta
-	if Enemy:CountAlive() > 0 then
-		remotes.Aviso:FireAllClients("AMANHECEU! Os veritys recuam para a floresta")
-		Enemy:ClearAll()
 	end
 	remaining()
 	return false
@@ -229,7 +243,7 @@ local function runLoop(myRun)
 		for _, p in ipairs(inGame()) do
 			if bonus > 0 then Economy:Add(p, bonus) end
 			Lobby:AddGems(p, gems)
-			remotes.Aviso:FireClient(p, "WAVE " .. wave .. " CONCLUÍDA!" .. (bonus > 0 and ("  +$" .. bonus) or "") .. "  +" .. (p:GetAttribute("GemasEmDobro") and gems * 2 or gems) .. " GEMAS")
+			remotes.Aviso:FireClient(p, "AMANHECEU!  DIA " .. (wave + 1) .. (bonus > 0 and ("  +$" .. bonus) or "") .. "  +" .. (p:GetAttribute("GemasEmDobro") and gems * 2 or gems) .. " GEMAS")
 		end
 		if wave % Cfg.CheckpointACada == 0 then
 			local coins, weapons = {}, {}
@@ -259,6 +273,7 @@ function WaveService:StartRun(fromCheckpoint, startWave)
 	Class:ResetRun()
 	Chunk:ResetRun()
 	Coleta:ResetRun()
+	require(script.Parent.MercadorService):ResetRun()
 	kills = 0
 	plans = {}
 	local lados = Cfg.LadosPossiveis or { "Norte" }
