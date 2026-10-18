@@ -29,11 +29,17 @@ return {
 		Desfoque = { Distancia = 55, Raio = 45, Intensidade = 0.45 },
 		-- neblina classica (Lighting.Fog): parede branca garantida a partir de Fim studs.
 		-- Quando ligada, o Atmosphere sai (o Roblox ignora o Fog se existir Atmosphere).
+		-- Cor de nevoa suave (verde-acinzentada), nao branca: limita a visao sem ofuscar.
 		Classica = {
-			Inicio = 30,
-			Fim = 170,
-			CorDia = Color3.fromRGB(246, 248, 252),
-			CorNoite = Color3.fromRGB(205, 210, 222), -- branco mais apagado a noite
+			Inicio = 45,
+			Fim = 150,
+			CorDia = Color3.fromRGB(184, 200, 192),
+			CorNoite = Color3.fromRGB(46, 54, 72), -- a noite a nevoa escurece (sem clarao branco)
+		},
+		-- brilho do Lighting: o SunRays/Bloom do mapa estavam ofuscando (glare)
+		Brilho = {
+			SunRays = { Intensidade = 0.02, Espalhar = 0.2 },
+			Bloom = { Intensidade = 0.35, Tamanho = 18, Limite = 2.4 },
 		},
 		TempoTransicao = 2.5,
 		-- Wave 100: a nevoa volta, vermelha

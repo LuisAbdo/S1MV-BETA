@@ -72,7 +72,26 @@ do
 	end
 end
 
--- desfoque do fundo: junto com a neblina branca, esconde o fim do mapa
+-- menos glare: SunRays e Bloom do mapa ficam bem mais fracos
+do
+	local B = Config.Nevoa.Brilho
+	if B then
+		local function tame(c)
+			if c:IsA("SunRaysEffect") then
+				c.Intensity = B.SunRays.Intensidade
+				c.Spread = B.SunRays.Espalhar
+			elseif c:IsA("BloomEffect") then
+				c.Intensity = B.Bloom.Intensidade
+				c.Size = B.Bloom.Tamanho
+				c.Threshold = B.Bloom.Limite
+			end
+		end
+		for _, c in ipairs(Lighting:GetChildren()) do tame(c) end
+		Lighting.ChildAdded:Connect(tame)
+	end
+end
+
+-- desfoque do fundo: junto com a neblina, esconde o fim do mapa
 do
 	local D = Config.Nevoa.Desfoque
 	if D then
