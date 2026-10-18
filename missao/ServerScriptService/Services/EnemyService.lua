@@ -49,7 +49,7 @@ local function flat(v) return Vector3.new(v.X, 0, v.Z) end
 local function refreshFilter()
 	local list = {}
 	for _, inst in ipairs({ folder, fxFolder, deadFolder, Core:GetModel() }) do table.insert(list, inst) end
-	for _, n in ipairs({ "Moedas", "Estruturas", "Recursos", "ItensChao", "NevoaLimite", "VerityBoss" }) do
+	for _, n in ipairs({ "Moedas", "Estruturas", "Recursos", "ItensChao", "NevoaLimite", "VerityBoss", "GlitchBarreiras", "CasaMercador" }) do
 		local f = workspace:FindFirstChild(n)
 		if f then table.insert(list, f) end
 	end
@@ -138,9 +138,20 @@ end
 
 local function templateFor(typeCfg)
 	local inimigos = ServerStorage:WaitForChild("Inimigos")
-	local t = inimigos:FindFirstChild(typeCfg.Template)
+	-- procura em ServerStorage.Inimigos e depois direto no ServerStorage (ex.: o chefe Glitcity)
+	local t = inimigos:FindFirstChild(typeCfg.Template) or ServerStorage:FindFirstChild(typeCfg.Template)
 	if t and t:IsA("Model") then
-		t = t:FindFirstChildWhichIsA("MeshPart") or t:FindFirstChildWhichIsA("BasePart")
+		local best, bv = t.PrimaryPart, 0
+		if not best then
+			for _, p in ipairs(t:GetDescendants()) do
+				if p:IsA("BasePart") and p.Size.Magnitude > bv then best, bv = p, p.Size.Magnitude end
+			end
+		end
+		t = best
+	end
+	if not t and typeCfg.Chefe then
+		-- sem o modelo do chefe ainda: usa o verity como corpo provisorio (pintado no Spawn)
+		t = inimigos:FindFirstChild("Meshes/Hollow Ball")
 	end
 	return t
 end
@@ -521,6 +532,12 @@ end
 
 -- RENDER --------------------------------------------------------------
 function EnemyService:_render(data)
+	-- chefe com "frame-skip": so atualiza a pose em saltos (movimento travado)
+	if data.cfg.FrameSkip then
+		local now = os.clock()
+		if now - (data.lastRender or 0) < data.cfg.FrameSkip then return end
+		data.lastRender = now
+	end
 	local t = data.hopT
 	local scaleY = lerpKeys(P.EscalaY, t)
 	local h = 0
@@ -539,6 +556,141 @@ function EnemyService:_render(data)
 		if decal then decal.Transparency = (math.random() < 0.08) and 0.6 or 0 end
 	end
 end
+
+-- CAMINHO ATE O NUCLEO (campo de fluxo) ----------------------------------------------------
+-- Grade em volta do Nucleo; as estruturas que bloqueiam marcam celulas como fechadas. Um BFS a
+-- partir do anel do Nucleo diz, para cada celula, quantos passos faltam. O verity segue a celula
+-- vizinha com menos passos: contorna muros e entra pelas ABERTURAS. So quando nao existe caminho
+-- nenhum (base toda fechada) ele vai reto e quebra o que estiver na frente.
+local FIELD = { cell = 4, radius = 96, dirty = true, last = 0 }
+FIELD.n = math.floor(FIELD.radius * 2 / FIELD.cell)
+local fieldDist = nil   -- [ix][iz] = passos ate o Nucleo (nil = fechado/inalcancavel)
+local fieldOrigin = Vector3.zero
+
+local function cellOf(pos)
+	local ix = math.floor((pos.X - fieldOrigin.X) / FIELD.cell) + 1
+	local iz = math.floor((pos.Z - fieldOrigin.Z) / FIELD.cell) + 1
+	return ix, iz
+end
+local function cellCenter(ix, iz)
+	return Vector3.new(fieldOrigin.X + (ix - 0.5) * FIELD.cell, 0, fieldOrigin.Z + (iz - 0.5) * FIELD.cell)
+end
+
+local function rebuildField()
+	FIELD.dirty = false
+	local n, c = FIELD.n, FIELD.cell
+	fieldOrigin = Vector3.new(Core.Position.X - FIELD.radius, 0, Core.Position.Z - FIELD.radius)
+	local blocked = table.create(n)
+	for ix = 1, n do blocked[ix] = {} end
+	-- rasteriza a base (caixa de colisao) de cada estrutura que bloqueia
+	for _, st in ipairs(CollectionService:GetTagged("Estrutura")) do
+		local main = st.PrimaryPart
+		local key = st:GetAttribute("Item")
+		-- so o que segura o verity conta: caixa com colisao, no chao, mais alta que um degrau
+		local low = main and (main.Position.Y - main.Size.Y / 2) <= Core.Position.Y + 3
+		if main and main.CanCollide and low and main.Size.Y > 1.5 and st:GetAttribute("NaoBloqueia") ~= true and key ~= "Mina" then
+			local half = main.Size / 2 + Vector3.new(1.5, 0, 1.5)  -- folga para o corpo do verity
+			local cf = main.CFrame
+			local r = math.max(half.X, half.Z) * 1.5
+			local i0, j0 = cellOf(main.Position - Vector3.new(r, 0, r))
+			local i1, j1 = cellOf(main.Position + Vector3.new(r, 0, r))
+			for ix = math.max(1, i0), math.min(n, i1) do
+				for iz = math.max(1, j0), math.min(n, j1) do
+					local p = cf:PointToObjectSpace(cellCenter(ix, iz) + Vector3.new(0, cf.Position.Y, 0))
+					if math.abs(p.X) <= half.X and math.abs(p.Z) <= half.Z then blocked[ix][iz] = true end
+				end
+			end
+		end
+	end
+	-- BFS a partir do anel de ataque do Nucleo
+	local dist = table.create(n)
+	for ix = 1, n do dist[ix] = {} end
+	local qx, qz, head = {}, {}, 1
+	local goalR = IA.RaioSlot + 3
+	for ix = 1, n do
+		for iz = 1, n do
+			local p = cellCenter(ix, iz)
+			if not blocked[ix][iz] and (p - Vector3.new(Core.Position.X, 0, Core.Position.Z)).Magnitude <= goalR then
+				dist[ix][iz] = 0
+				table.insert(qx, ix); table.insert(qz, iz)
+			end
+		end
+	end
+	while head <= #qx do
+		local x, z = qx[head], qz[head]
+		head += 1
+		local d = dist[x][z] + 1
+		for dx = -1, 1 do
+			for dz = -1, 1 do
+				if dx ~= 0 or dz ~= 0 then
+					local nx, nz = x + dx, z + dz
+					if nx >= 1 and nx <= n and nz >= 1 and nz <= n and not blocked[nx][nz] and dist[nx][nz] == nil then
+						-- diagonal so se as duas laterais estiverem livres (nao corta quina de muro)
+						if dx == 0 or dz == 0 or (not blocked[x + dx][z] and not blocked[x][z + dz]) then
+							dist[nx][nz] = d
+							table.insert(qx, nx); table.insert(qz, nz)
+						end
+					end
+				end
+			end
+		end
+	end
+	fieldDist = dist
+end
+
+-- proximo ponto do caminho (2 celulas a frente) ou nil se nao ha caminho / fora da grade
+local function flowGoal(pos)
+	if not fieldDist then return nil end
+	local ix, iz = cellOf(pos)
+	local n = FIELD.n
+	if ix < 1 or ix > n or iz < 1 or iz > n then return nil end
+	local cur = fieldDist[ix][iz]
+	if cur == nil then
+		-- celula fechada (encostado num muro): procura a vizinha alcancavel mais perto
+		local best, bd
+		for dx = -2, 2 do
+			for dz = -2, 2 do
+				local nx, nz = ix + dx, iz + dz
+				local v = nx >= 1 and nx <= n and nz >= 1 and nz <= n and fieldDist[nx][nz]
+				if v and (not bd or v < bd) then best, bd = { nx, nz }, v end
+			end
+		end
+		if not best then return nil end
+		local c = cellCenter(best[1], best[2])
+		return Vector3.new(c.X, pos.Y, c.Z)
+	end
+	local x, z = ix, iz
+	for _ = 1, 2 do
+		local bx, bz, bv = x, z, fieldDist[x][z]
+		for dx = -1, 1 do
+			for dz = -1, 1 do
+				local nx, nz = x + dx, z + dz
+				local v = nx >= 1 and nx <= n and nz >= 1 and nz <= n and fieldDist[nx][nz]
+				if v and v < bv then bx, bz, bv = nx, nz, v end
+			end
+		end
+		x, z = bx, bz
+	end
+	local c = cellCenter(x, z)
+	return Vector3.new(c.X, pos.Y, c.Z)
+end
+
+-- a horda so vai reto e quebra muro quando NAO existe abertura ate o Nucleo
+local function hasOpening(pos)
+	if not fieldDist then return true end
+	local ix, iz = cellOf(pos)
+	local n = FIELD.n
+	if ix < 1 or ix > n or iz < 1 or iz > n then return true end
+	if fieldDist[ix][iz] ~= nil then return true end
+	for dx = -2, 2 do
+		for dz = -2, 2 do
+			local nx, nz = ix + dx, iz + dz
+			if nx >= 1 and nx <= n and nz >= 1 and nz <= n and fieldDist[nx][nz] then return true end
+		end
+	end
+	return false
+end
+EnemyService.HasOpening = hasOpening
 
 -- IA ------------------------------------------------------------------
 local function nearestPlayerDist(pos, plist)
@@ -594,6 +746,10 @@ function EnemyService:_think(data, dt, plist, now)
 			releaseSlot(data)
 			goal = Vector3.new(decoy.ground.X, data.pos.Y, decoy.ground.Z)
 			attackReady = (flat(goal - data.pos)).Magnitude <= IA.AlcanceAtaque + data.size / 2 + 1
+		elseif (flat(data.pos - Core.Position)).Magnitude > IA.RaioSlot + 5 and flowGoal(data.pos) and not data.blockedBy then
+			-- ainda longe: segue o caminho livre ate o Nucleo (contorna muros, entra pelas aberturas)
+			goal = flowGoal(data.pos)
+			releaseSlot(data)
 		elseif reserveSlot(data) then
 			goal = slotPosition(data.slot)
 			attackReady = (flat(goal - data.pos)).Magnitude <= 2.5
@@ -682,6 +838,15 @@ function EnemyService:_move(data, dt)
 			-- estrutura no caminho: para e ataca
 			local obst = workspace:Raycast(data.pos + Vector3.new(0, data.size * 0.5, 0), data.moveDir * (data.size * 0.5 + speed * airT + 0.6), obstacleParams)
 			local blocker = obst and Build and Build:ModelFromPart(obst.Instance)
+			-- com caminho livre ate o Nucleo, o verity nao para para quebrar: so desvia (o campo de
+			-- fluxo leva para a abertura). Sem abertura nenhuma, ataca o que estiver na frente.
+			if blocker and hasOpening(data.pos) and not data.player then
+				local side = Vector3.new(-data.moveDir.Z, 0, data.moveDir.X)
+				local np2 = data.pos + side * (speed * airT)
+				local y2 = groundAt(np2.X, np2.Z, data.pos.Y)
+				if y2 and y2 - data.pos.Y <= IA.DegrauMax then data.pos = Vector3.new(np2.X, y2, np2.Z) end
+				return
+			end
 			if blocker then
 				data.blockedBy = blocker
 				data.stuckT = 0
@@ -796,6 +961,9 @@ end
 function EnemyService:Folder() return folder end
 
 function EnemyService:Start()
+	-- estruturas novas/destruidas mudam o caminho
+	CollectionService:GetInstanceAddedSignal("Estrutura"):Connect(function() FIELD.dirty = true end)
+	CollectionService:GetInstanceRemovedSignal("Estrutura"):Connect(function() FIELD.dirty = true end)
 	-- Scheduler unico de IA
 	RunService.Heartbeat:Connect(function(dt)
 		local now = os.clock()
@@ -814,6 +982,11 @@ function EnemyService:Start()
 			end
 		end
 		separate(dt)
+		-- recalcula o caminho quando as estruturas mudam (no maximo 2x por segundo)
+		if FIELD.dirty and now - FIELD.last > 0.5 then
+			FIELD.last = now
+			rebuildField()
+		end
 		estado:SetAttribute("InimigosVivos", self:CountAlive())
 		for i = #enemies, 1, -1 do
 			local data = enemies[i]
