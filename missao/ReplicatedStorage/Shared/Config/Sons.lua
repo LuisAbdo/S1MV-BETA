@@ -138,6 +138,13 @@ local SONS = {
 	MercadorCompra = { Id = id(80736831159506), V = 0.6, P = 0.9 },
 	Cansado = { Id = id(136811265205147), V = 0.25, P = 1.3 },       -- stamina zerou
 
+	-- DERROTA (cutscene: o Verity Boss destroi o Nucleo)
+	DerrotaAlarme = { Id = id(1839901373), V = 0.5, P = 0.8 },
+	DerrotaPouso = { Id = id(124499547710959), V = 1 },
+	DerrotaRugido = { Id = id(116576934219692), V = 1, P = 0.75 },
+	DerrotaImpacto = { Id = id(138533090376585), V = 0.9, P = 0.7 },
+	DerrotaExplosao = { Id = id(139210252225248), V = 1, P = 0.6 },
+
 	-- CLASSES: um som por habilidade (Z, X, C, Q e os efeitos delas)
 	Classes = {
 		Soldado = {
@@ -156,7 +163,11 @@ local SONS = {
 			Sombras = { Id = id(9125517884), V = 0.32, P = 0.63 },          -- Q
 		},
 		Engenheiro = {
-			Moggity = { Id = id(451660893), V = 0.4 },                      -- Z: torreta
+			Moggity = { Id = id(451660893), V = 0.4 },                      -- Z: torreta (implante)
+			MoggityTiro = { Id = id(9119215650), V = 0.35, P = 1.45 },       -- "pop" da ervilha
+			MoggityErvilha = { Id = id(132176641904643), V = 0.3, P = 1.6 },  -- ervilha estourando no alvo
+			MoggityCarga = { Id = id(120250063764346), V = 0.5, P = 1.6 },    -- brilho antes da rajada
+			MoggityRajada = { Id = id(113879008765178), V = 0.25, P = 1.3 },  -- metralhada de ervilhas
 			Isca = { Id = id(130869638485735), V = 0.5, P = 1.2 },          -- X
 			Plasma = { Id = id(120250063764346), V = 0.22 },                -- C: campo
 			PlasmaZap = { Id = id(115842676995967), V = 0.21, P = 1.2 },

@@ -13,6 +13,7 @@ return {
 	NoiteDuracao = 95,             -- base do ritmo: os grupos chegam espalhados por ~65% disso
 	NoiteEspalhar = 0.65,
 	NoiteMaxima = 600,             -- trava de seguranca (inimigo preso nao segura a noite para sempre)
+	CutsceneDerrota = 8.5,         -- segundos da cutscene do Nucleo sendo destruido (depois vem a tela de fim)
 	TransicaoLuz = 5,
 
 	-- DIFICULDADE = QUANTIDADE: a vida dos veritys NAO cresce; cada wave traz mais bichos

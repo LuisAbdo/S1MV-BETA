@@ -161,27 +161,49 @@ function AllyService:ClearAll()
 	for i = #allies, 1, -1 do self:Remove(allies[i], false) end
 end
 
--- MOGGITY: torreta temporaria (Verity blindado com canhao)
+-- MOGGITY: ervilha soldado (estilo peashooter). O servidor so tem um corpo invisivel (mira e
+-- dano); o visual (cabeca com focinho, folhas, capacete) e as animacoes ficam no MoggityCliente.
+local MOGGITY_ALTURA = 2.6
 function AllyService:SpawnMoggity(owner, pos, cfg, mult)
 	local g = groundAt(pos)
 	local model = Instance.new("Model")
 	model.Name = "MOGGITY"
-	local body = baseMesh()
+	local body = Instance.new("Part")
 	body.Name = "Corpo"
-	body.Color = Color3.fromRGB(110, 115, 125)
-	body.Material = Enum.Material.Metal
-	body.Size = Vector3.one * 4.2
+	body.Anchored = true
+	body.CanCollide = false; body.CanTouch = false; body.CanQuery = false
+	body.Transparency = 1
+	body.Size = Vector3.new(3, 5.2, 3)
+	body.CFrame = CFrame.new(g + Vector3.new(0, MOGGITY_ALTURA, 0))
 	body.Parent = model
-	local helm = part(model, Vector3.new(4.6, 1.2, 4.6), Color3.fromRGB(70, 72, 80), { name = "Elmo" })
-	local cano = part(model, Vector3.new(0.9, 0.9, 3.4), Color3.fromRGB(45, 45, 50), { name = "Cano" })
-	local luz = part(model, Vector3.new(0.6, 0.6, 0.6), Color3.fromRGB(255, 180, 40), { neon = true, name = "Luz" })
 	model.PrimaryPart = body
-	body.CFrame = CFrame.new(g + Vector3.new(0, 2.1, 0))
-	dressWith(body, "Moggity", 5.4, "_Canhao", { helm, cano, luz })
-	local a = register({ kind = "Moggity", owner = owner, model = model, body = body, parts = { helm = helm, cano = cano, luz = luz },
-		ground = g, born = os.clock(), expires = os.clock() + cfg.Duracao, cfg = cfg, mult = mult or 1, last = 0, face = Vector3.new(0, 0, -1), t = 0 })
-	burst(g + Vector3.new(0, 2, 0), Color3.fromRGB(255, 190, 60), 20)
+	model:SetAttribute("Chao", g)
+	model:SetAttribute("Dono", owner and owner.UserId or 0)
+	local R = cfg.Rajada
+	local a = register({ kind = "Moggity", owner = owner, model = model, body = body, parts = {},
+		ground = g, born = os.clock(), expires = os.clock() + cfg.Duracao, cfg = cfg, mult = mult or 1, last = 0, face = Vector3.new(0, 0, -1), t = 0,
+		proxRajada = R and (os.clock() + R.Atraso) or nil, rajadaAte = 0, overWas = false })
+	burst(g + Vector3.new(0, 2, 0), Color3.fromRGB(150, 230, 80), 20)
 	return a
+end
+
+-- rajada: ervilhas em linha reta na direcao da mira; cada uma acerta TODOS os inimigos na faixa
+local function moggityRajada(a, enemyList)
+	local R = a.cfg.Rajada
+	local origin = a.ground
+	local dir = a.face
+	local owner = a.owner and a.owner.Parent and a.owner or nil
+	local hits = 0
+	for _, e in ipairs(enemyList) do
+		local rel = Vector3.new(e.pos.X - origin.X, 0, e.pos.Z - origin.Z)
+		local along = rel:Dot(dir)
+		local side = (rel - dir * along).Magnitude
+		if along > 0 and along <= a.cfg.Alcance + 6 and side <= R.Largura then
+			Enemy:Damage(e.model, R.Dano * a.mult, owner)
+			hits += 1
+		end
+	end
+	return hits
 end
 
 -- LOVITY: cura em area. Toda a animacao (chegada do ceu, pulos, coracoes, pulso de cura,
@@ -326,23 +348,51 @@ function AllyService:Start()
 						local d = (e.pos - a.ground).Magnitude
 						if d <= a.cfg.Alcance and (not bd or d < bd) then best, bd = e, d end
 					end
-					if best then
+					local R = a.cfg.Rajada
+					local firing = now < a.rajadaAte
+					-- durante a rajada a mira fica travada (linha reta, como no peashooter)
+					if best and not firing and now >= (a.cargaAte or 0) then
 						local f = Vector3.new(best.pos.X - a.ground.X, 0, best.pos.Z - a.ground.Z)
-						if f.Magnitude > 0.1 then a.face = f.Unit end
+						if f.Magnitude > 0.1 and f.Unit:Dot(a.face) < 0.999 then
+							a.face = f.Unit
+							local c = a.ground + Vector3.new(0, MOGGITY_ALTURA, 0)
+							a.body.CFrame = CFrame.lookAt(c, c + a.face)
+						end
 					end
-					local c = hop(a, dt, 4.2)
-					local cf = CFrame.lookAt(c, c + a.face)
-					a.parts.helm.CFrame = cf * CFrame.new(0, 1.6, 0)
-					a.parts.cano.CFrame = cf * CFrame.new(0, 0.6, -2.6)
-					a.parts.luz.CFrame = cf * CFrame.new(0, 2.4, 0)
 					local overcharge = (estado:GetAttribute("SobrecargaAte") or 0) > workspace:GetServerTimeNow()
-					local cad = a.cfg.Cadencia / (overcharge and 2 or 1)
-					if best and now - a.last >= cad then
-						a.last = now
-						local muzzle = (cf * CFrame.new(0, 0.6, -4.3)).Position
-						tracer(muzzle, best.pos, Color3.fromRGB(255, 200, 60))
-						local owner = a.owner and a.owner.Parent and a.owner or nil
-						Enemy:Damage(best.model, a.cfg.Dano * a.mult, owner)
+					-- a Sobrecarga do Engenheiro dispara outra rajada
+					if R and overcharge and not a.overWas and not firing then a.proxRajada = now end
+					a.overWas = overcharge
+					if R and a.proxRajada and now >= a.proxRajada then
+						a.proxRajada = nil
+						a.cargaAte = now + R.Carga
+						a.rajadaAte = a.cargaAte + R.Duracao
+						a.rajadaTick = a.cargaAte
+						remotes.Efeito:FireAllClients("MoggityRajada", a.model, a.face, R.Carga, R.Duracao, a.cfg.Alcance)
+					end
+					if R and now >= (a.cargaAte or 0) and now < a.rajadaAte then
+						-- uma ervilha "logica" a cada Duracao/Disparos (o cliente desenha a metralhada)
+						local step = R.Duracao / R.Disparos
+						while a.rajadaTick <= now do
+							a.rajadaTick += step
+							moggityRajada(a, enemyList)
+						end
+					elseif now >= (a.cargaAte or 0) and now >= a.rajadaAte then
+						local cad = a.cfg.Cadencia / (overcharge and 2 or 1)
+						if best and now - a.last >= cad then
+							a.last = now
+							local c = a.ground + Vector3.new(0, MOGGITY_ALTURA, 0)
+							local muzzle = c + a.face * 2.2 + Vector3.new(0, 1.2, 0)
+							local d = (best.pos - muzzle).Magnitude
+							local speed = a.cfg.VelocidadeErvilha or 75
+							-- o cliente faz a ervilha voar; o dano chega junto com ela
+							remotes.Efeito:FireAllClients("MoggityTiro", a.model, muzzle, best.pos, speed)
+							local owner = a.owner and a.owner.Parent and a.owner or nil
+							local target, dmg = best.model, a.cfg.Dano * a.mult
+							task.delay(d / speed, function()
+								if target.Parent then Enemy:Damage(target, dmg, owner) end
+							end)
+						end
 					end
 				elseif a.kind == "Lovity" then
 					if now - a.last >= 1 then

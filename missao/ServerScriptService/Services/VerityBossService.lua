@@ -276,6 +276,16 @@ function VerityBossService:Init()
 	folder = workspace:FindFirstChild("VerityBoss") or Instance.new("Folder")
 	folder.Name = "VerityBoss"
 	folder.Parent = workspace
+	-- copia do modelo (sem scripts) para o cliente usar na cutscene de derrota (DerrotaCliente)
+	local tmpl = ServerStorage:FindFirstChild("VerityBoss")
+	if tmpl and not Shared:FindFirstChild("ModeloVerityBoss") then
+		local c = tmpl:Clone()
+		for _, d in ipairs(c:GetDescendants()) do
+			if d:IsA("LuaSourceContainer") or d:IsA("Sound") then d:Destroy() end
+		end
+		c.Name = "ModeloVerityBoss"
+		c.Parent = Shared
+	end
 end
 
 function VerityBossService:Start()

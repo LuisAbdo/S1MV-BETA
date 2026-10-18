@@ -406,7 +406,7 @@ remotes.Tiro.OnClientEvent:Connect(function(shooter, weaponId, muzzle)
 	end
 end)
 
--- JOGADOR: poeira nos passos, pouso do pulo, brilho de upgrade ---------------------------
+-- JOGADOR: poeira nos passos e na saida do pulo, brilho de upgrade ---------------------------
 local function watchCharacter(char)
 	local hum = char:WaitForChild("Humanoid", 10)
 	local root = char:WaitForChild("HumanoidRootPart", 10)
@@ -421,12 +421,9 @@ local function watchCharacter(char)
 			dust(root.Position - Vector3.new(0, 2.9, 0) - root.CFrame.LookVector * 0.6, 2, 0.8)
 		end
 	end)
+	-- (sem efeito ao cair depois do pulo: poeira so nos passos e na saida do pulo)
 	hum.StateChanged:Connect(function(_, new)
-		if new == Enum.HumanoidStateType.Landed then
-			local feet = root.Position - Vector3.new(0, 2.9, 0)
-			dust(feet, 7, 1.4)
-			ring(feet + Vector3.new(0, 0.05, 0), DUST, 0.5, 3.2, 0.3, 0.1)
-		elseif new == Enum.HumanoidStateType.Jumping then
+		if new == Enum.HumanoidStateType.Jumping then
 			dust(root.Position - Vector3.new(0, 2.9, 0), 3, 0.9)
 		end
 	end)
