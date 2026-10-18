@@ -156,7 +156,11 @@ local SONS = {
 			Sombras = { Id = id(9125517884), V = 0.32, P = 0.63 },          -- Q
 		},
 		Engenheiro = {
-			Moggity = { Id = id(451660893), V = 0.4 },                      -- Z: torreta
+			Moggity = { Id = id(451660893), V = 0.4 },                      -- Z: torreta (implante)
+			MoggityTiro = { Id = id(9119215650), V = 0.35, P = 1.45 },       -- "pop" da ervilha
+			MoggityErvilha = { Id = id(132176641904643), V = 0.3, P = 1.6 },  -- ervilha estourando no alvo
+			MoggityCarga = { Id = id(120250063764346), V = 0.5, P = 1.6 },    -- brilho antes da rajada
+			MoggityRajada = { Id = id(113879008765178), V = 0.25, P = 1.3 },  -- metralhada de ervilhas
 			Isca = { Id = id(130869638485735), V = 0.5, P = 1.2 },          -- X
 			Plasma = { Id = id(120250063764346), V = 0.22 },                -- C: campo
 			PlasmaZap = { Id = id(115842676995967), V = 0.21, P = 1.2 },

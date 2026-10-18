@@ -59,7 +59,12 @@ return {
 			Passiva = { Nome = "B.A.S.E.", Texto = "Estruturas a 15 studs das suas: +60 de armadura e reparo 50% mais barato", Raio = 15, Armadura = 60, DescontoReparo = 0.5 },
 			BonusTime = { Texto = "Time: torretas +10% de dano", DanoTorreta = 0.10 },
 			Habilidades = {
-				Z = { Nome = "MOGGITY", Cooldown = 25, Duracao = 20, Alcance = 40, Dano = 12, Cadencia = 0.4, Distancia = 25 },
+				-- MOGGITY: ervilha soldado (estilo peashooter). Atira ervilhas que voam ate o alvo; ao
+				-- nascer (e na Sobrecarga) brilha e solta uma RAJADA de ervilhas em linha reta que
+				-- atravessa todos os inimigos no caminho.
+				Z = { Nome = "MOGGITY", Cooldown = 25, Duracao = 20, Alcance = 40, Dano = 12, Cadencia = 0.4, Distancia = 25,
+					VelocidadeErvilha = 75,
+					Rajada = { Atraso = 0.9, Carga = 0.8, Duracao = 2.2, Disparos = 26, Dano = 10, Largura = 3.5 } },
 				X = { Nome = "Isca", Cooldown = 18, Duracao = 6, Vida = 200, RaioAtracao = 30, Distancia = 25 },
 				C = { Nome = "Pulso de plasma", Cooldown = 20, Duracao = 6, Intervalo = 0.6, Raio = 11, Dano = 40, RaioExplosao = 5, Distancia = 25 },
 				Q = { Nome = "Sobrecarga", Cooldown = 1, Carga = 45, Duracao = 8, MultCadencia = 2 },
