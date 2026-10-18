@@ -87,25 +87,8 @@ local function buildModel()
 	body.CFrame = CFrame.lookAt(center, center + Vector3.new(0, 0, 10)) -- olhando para o spawn dos jogadores
 	body.Parent = model
 	model.PrimaryPart = body
-	local cf = body.CFrame
-	-- antena com lampada
-	part({ Name = "Antena", Size = Vector3.new(0.25, 1.6, 0.25), Color = Color3.fromRGB(70, 80, 100), CFrame = cf * CFrame.new(0.3, 2.8, 0) * CFrame.Angles(0, 0, math.rad(-12)) })
-	part({ Name = "Lampada", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.8, Color = Color3.fromRGB(255, 230, 90), Material = Enum.Material.Neon, CFrame = cf * CFrame.new(0.5, 3.7, 0) })
-	-- lupa flutuando ao lado (pesquisadora)
-	local lupa = cf * CFrame.new(-3.1, -0.2, -0.6)
-	for i = 0, 9 do
-		local a = i / 10 * math.pi * 2
-		part({ Name = "Aro", Size = Vector3.new(0.3, 0.3, 0.55), Color = Color3.fromRGB(240, 190, 70), CFrame = lupa * CFrame.new(math.cos(a) * 0.95, math.sin(a) * 0.95, 0) * CFrame.Angles(0, 0, a) })
-	end
-	part({ Name = "Lente", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.15, 1.8, 1.8), Color = Color3.fromRGB(190, 240, 255), Transparency = 0.45, Material = Enum.Material.Glass, CFrame = lupa * CFrame.Angles(0, math.rad(90), 0) })
-	part({ Name = "Cabo", Size = Vector3.new(0.3, 1.4, 0.3), Color = Color3.fromRGB(120, 75, 40), CFrame = lupa * CFrame.new(0.35, -1.55, 0) * CFrame.Angles(0, 0, math.rad(-20)) })
-	-- olho do laser
-	local olho = part({ Name = "Olho", Shape = Enum.PartType.Ball, Size = Vector3.one * 0.7, Color = Color3.fromRGB(80, 255, 230), Material = Enum.Material.Neon, CFrame = cf * CFrame.new(0, 0.5, -2.1) })
-	local luz = Instance.new("PointLight")
-	luz.Color = Color3.fromRGB(120, 220, 255); luz.Range = 10; luz.Brightness = 1.2
-	luz.Parent = body
-	-- sombra no chao
-	part({ Name = "Sombra", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.1, 3.6, 3.6), Color = Color3.fromRGB(20, 20, 30), Transparency = 0.6, CFrame = CFrame.new(groundPos + Vector3.new(0, 0.08, 0)) * CFrame.Angles(0, 0, math.rad(90)) })
+	-- so a esfera: sem antena, lupa, olho ou sombra (o laser sai do proprio corpo)
+	local olho = body
 	-- nome
 	local tag = Instance.new("BillboardGui")
 	tag.Name = "Nome"
