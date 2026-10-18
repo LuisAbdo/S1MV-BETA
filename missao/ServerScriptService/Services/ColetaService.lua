@@ -140,6 +140,21 @@ end
 ColetaService.MakeItem = makeItem
 
 -- MOCHILA ---------------------------------------------------------------------------------
+-- melhorias do Mercador (atributos do jogador, zerados a cada run)
+local function mercItem(id)
+	for _, it in ipairs(Cfg.Mercador and Cfg.Mercador.Itens or {}) do if it.Id == id then return it end end
+end
+local function bagCap(player)
+	local it = mercItem("Mochila")
+	return Cfg.Mochila + (player:GetAttribute("NivelMochila") or 0) * (it and it.PorNivel or 3)
+end
+ColetaService.BagCap = bagCap
+local function axeStats(player)
+	local it = mercItem("Machado")
+	local lvl = player:GetAttribute("NivelMachado") or 0
+	return Cfg.Machado.Dano + lvl * (it and it.DanoPorNivel or 1), math.max(0.2, Cfg.Machado.Cooldown - lvl * (it and it.CooldownPorNivel or 0))
+end
+
 local function bagTotal(player)
 	return (player:GetAttribute("Mochila_Madeira") or 0) + (player:GetAttribute("Mochila_Pedra") or 0)
 end
@@ -165,7 +180,7 @@ local function updateSack(player)
 		sack.Parent = char
 		local w = Instance.new("Weld"); w.Name = "SacoSolda"; w.Part0 = torso; w.Part1 = sack; w.Parent = sack
 	end
-	local s = 1.6 + n / Cfg.Mochila * 1.1
+	local s = 1.6 + n / bagCap(player) * 1.1
 	sack.Size = Vector3.one * s
 	local weld = sack:FindFirstChild("SacoSolda")
 	if weld then weld.C0 = CFrame.new(0, 0.1, torso.Size.Z / 2 + s / 2 - 0.2) end
@@ -175,8 +190,8 @@ function ColetaService:Store(player, item)
 	if not item or not item.Parent or not CollectionService:HasTag(item, "ItemChao") then return end
 	local _, root = charOf(player)
 	if not root or (root.Position - item.Position).Magnitude > 12 then return end
-	if bagTotal(player) >= Cfg.Mochila then
-		remotes.Aviso:FireClient(player, "Mochila cheia (" .. Cfg.Mochila .. "/" .. Cfg.Mochila .. ") - leve ao Núcleo")
+	if bagTotal(player) >= bagCap(player) then
+		remotes.Aviso:FireClient(player, "Mochila cheia (" .. bagCap(player) .. "/" .. bagCap(player) .. ") - leve ao Núcleo")
 		return
 	end
 	local kind = item:GetAttribute("Item")
@@ -304,14 +319,15 @@ local function onHit(player, model)
 	local char, root = charOf(player)
 	if not char or not holdingAxe(char) then return end
 	local now = os.clock()
-	if now - (lastHit[player] or 0) < Cfg.Machado.Cooldown * 0.85 then return end
+	local axeDmg, axeCd = axeStats(player)
+	if now - (lastHit[player] or 0) < axeCd * 0.85 then return end
 	local main = model.PrimaryPart
 	if not main then return end
 	local d = (flat(main.Position - root.Position)).Magnitude - footprint(model)
 	if d > Cfg.Machado.Alcance then return end
 	lastHit[player] = now
 	local kind = model:GetAttribute("Recurso")
-	local hp = (model:GetAttribute("Vida") or 1) - Cfg.Machado.Dano
+	local hp = (model:GetAttribute("Vida") or 1) - axeDmg
 	model:SetAttribute("Vida", hp)
 	local hitPos = main.Position + flat(root.Position - main.Position).Unit * math.min(footprint(model), 1.6)
 	hitPos = Vector3.new(hitPos.X, math.min(root.Position.Y + 0.5, main.Position.Y + main.Size.Y / 2 - 0.5), hitPos.Z)

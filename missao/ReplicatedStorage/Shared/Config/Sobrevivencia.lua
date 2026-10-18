@@ -23,6 +23,8 @@ return {
 			AnelFloresta = 0.55, -- densidade minima da mata logo depois da clareira (arvores ao redor do Nucleo)
 			Rampa = 80,        -- distancia em que o relevo vai de plano a altura cheia
 			SpawnLivre = 10,   -- raio plano e sem arvores em volta do spawn dos jogadores
+			CasaDistancia = { 120, 175 }, -- distancia da Casa do Mercador ate o Nucleo
+			CasaClareira = 30, -- raio plano e sem arvores em volta da Casa
 		},
 		-- quantidade por chunk: { min, max } (a densidade varia por "manchas" de floresta)
 		Arvores = { 2, 6 },
@@ -54,6 +56,21 @@ return {
 	Mochila = 5,              -- quantos itens cabem na mochila (tecla E no item)
 	ArrastarAlcance = 14,     -- distancia maxima para comecar a arrastar
 
+	-- MERCADOR (Casa na floresta) ------------------------------------------------------
+	-- Melhorias pessoais pagas com o ESTOQUE do Nucleo (madeira/pedra levadas ao Nucleo).
+	Mercador = {
+		DistanciaLoja = 14,
+		Itens = {
+			{ Id = "Mochila", Nome = "Mochila maior", Texto = "+3 espaços na mochila",
+				Niveis = { { Madeira = 6 }, { Madeira = 10, Pedra = 4 }, { Madeira = 16, Pedra = 10 } }, PorNivel = 3 },
+			{ Id = "Machado", Nome = "Machado afiado", Texto = "Corta e quebra mais rápido",
+				Niveis = { { Madeira = 5, Pedra = 5 }, { Madeira = 10, Pedra = 10 }, { Madeira = 18, Pedra = 16 } },
+				DanoPorNivel = 1, CooldownPorNivel = 0.06 },
+			{ Id = "Mapa", Nome = "Mapa da floresta", Texto = "Minimapa com você, o Núcleo e a Casa",
+				Niveis = { { Madeira = 8, Pedra = 6 } } },
+		},
+	},
+
 	-- NUCLEO (estoque) ----------------------------------------------------------------
 	Succao = {
 		Raio = 26,             -- clicar no Nucleo suga os itens soltos ate esta distancia
@@ -62,6 +79,16 @@ return {
 		Duracao = 0.9,         -- tempo da animacao de sugar
 	},
 	EstoqueInicial = { Madeira = 0, Pedra = 0 },
+
+	-- GLITCITY (primeiro chefe, noite 15) ------------------------------------------------
+	-- Vida/dano/tamanho ficam em Config/Enemies.Tipos.Glitcity.
+	Glitcity = {
+		Wave = 15,
+		DistanciaSurgir = 70,          -- surge na floresta, a esta distancia do Nucleo
+		Cutscene = { Glitch = 3, Camera = 1.4, Blocos = 2.2, Texto = 2.6 }, -- segundos de cada etapa
+		EMP = { Intervalo = 11, Raio = 32, Duracao = 4 },        -- desliga as torres perto
+		Voxels = { Intervalo = 9, Quantidade = 8, Raio = 10, Tamanho = 3, Duracao = 7 }, -- barreiras
+	},
 
 	-- VERITY BOSS (noite) ----------------------------------------------------------------
 	Boss = {

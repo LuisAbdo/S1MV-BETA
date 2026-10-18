@@ -24,6 +24,7 @@ local origin = Vector3.zero
 local corePos = Vector3.zero
 local spawnPos
 local seed, ox, oz = 1, 0, 0
+local casaPos = nil   -- onde a Casa do Mercador nasce nesta run (clareira plana propria)
 local runId = 0
 local decoracoes = {}
 
@@ -59,8 +60,13 @@ local function relief(x, z)
 	if spawnPos then
 		a = math.min(a, smooth(clamp01((flatDist(p, spawnPos) - R.SpawnLivre) / 24)))
 	end
+	if casaPos then
+		a = math.min(a, smooth(clamp01((flatDist(p, casaPos) - (R.CasaClareira or 30)) / 24)))
+	end
 	return a
 end
+
+function ChunkService:GetCasaPos() return casaPos end
 
 -- altura "continua" do relevo
 local function rawHeight(x, z)
@@ -230,6 +236,7 @@ end
 local function freeSpot(p)
 	if flatDist(p, corePos) < R.Clareira + 2 then return false end
 	if spawnPos and flatDist(p, spawnPos) < R.SpawnLivre + 4 then return false end
+	if casaPos and flatDist(p, casaPos) < (R.CasaClareira or 30) + 4 then return false end
 	return true
 end
 
@@ -370,6 +377,11 @@ local function newSeed()
 	seed = Random.new():NextInteger(1, 1e8)
 	local r = Random.new(seed)
 	ox, oz = r:NextNumber(-5000, 5000), r:NextNumber(-5000, 5000)
+	-- Casa do Mercador: num ponto aleatorio da floresta, longe da base mas dentro do mapa inicial
+	local d = R.CasaDistancia or { 120, 175 }
+	local ang = r:NextNumber(0, math.pi * 2)
+	local dist = r:NextNumber(d[1], d[2])
+	casaPos = Vector3.new(corePos.X + math.cos(ang) * dist, C.AlturaChao, corePos.Z + math.sin(ang) * dist)
 end
 
 function ChunkService:ResetRun()
