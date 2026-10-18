@@ -14,6 +14,7 @@ local remotes = Shared:WaitForChild("Remotes")
 local estado = Shared:WaitForChild("EstadoJogo")
 local Cfg = require(Shared.Config.Sobrevivencia)
 local SONS = require(Shared.Config.Sons)
+local Custos = require(Shared.Custos)
 local camera = workspace.CurrentCamera
 local rng = Random.new()
 
@@ -353,6 +354,31 @@ local function corePulse(center)
 	end)
 end
 
+-- "+3 [icone]  +2 [icone]" subindo do Nucleo depois de sugar
+local function popCost(pos, tot)
+	local a = part({ cf = CFrame.new(pos), transparency = 1, size = Vector3.one * 0.2, life = 1.8 })
+	local bb = Instance.new("BillboardGui")
+	bb.Size = UDim2.fromOffset(240, 46)
+	bb.AlwaysOnTop = true
+	bb.LightInfluence = 0
+	bb.Parent = a
+	local holder = Instance.new("Frame")
+	holder.Size = UDim2.fromScale(1, 1)
+	holder.BackgroundTransparency = 1
+	holder.Parent = bb
+	local row = Custos.Linha(holder, tot, { tamanho = 28, fonte = FONT, cor = Color3.fromRGB(255, 225, 140), prefixo = "+", separador = false, espaco = 6, contorno = Color3.fromRGB(30, 22, 12) })
+	local sc = Instance.new("UIScale"); sc.Scale = 0.3; sc.Parent = holder
+	tween(sc, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+	tween(a, 1.5, { Position = pos + Vector3.new(0, 4, 0) }, Enum.EasingStyle.Sine)
+	task.delay(1, function()
+		for _, d in ipairs(row:GetDescendants()) do
+			if d:IsA("TextLabel") then tween(d, 0.5, { TextTransparency = 1 })
+			elseif d:IsA("ImageLabel") then tween(d, 0.5, { ImageTransparency = 1 })
+			elseif d:IsA("UIStroke") then tween(d, 0.5, { Transparency = 1 }) end
+		end
+	end)
+end
+
 local function popText(pos, text, color)
 	local a = part({ cf = CFrame.new(pos), transparency = 1, size = Vector3.one * 0.2, life = 1.6 })
 	local bb = Instance.new("BillboardGui")
@@ -428,11 +454,7 @@ remotes.Efeito.OnClientEvent:Connect(function(kind, a, b, c, d, e)
 		end
 		task.delay(dur, function()
 			sound(SONS.Estoque, center, 1)
-			local parts = {}
-			for _, k in ipairs({ "Madeira", "Pedra" }) do
-				if tot[k] then table.insert(parts, "+" .. tot[k] .. " " .. (k == "Madeira" and "madeira" or "pedra")) end
-			end
-			if #parts > 0 then popText(center + Vector3.new(0, 5, 0), table.concat(parts, "  "), Color3.fromRGB(255, 225, 140)) end
+			if tot.Madeira or tot.Pedra then popCost(center + Vector3.new(0, 5, 0), tot) end
 		end)
 	end
 end)
@@ -494,10 +516,26 @@ local function coreSphere()
 	local m = CollectionService:GetTagged("Nucleo")[1]
 	return m and m:FindFirstChild("NucleoEsfera")
 end
-local function stockText()
-	local m = estado:GetAttribute("EstoqueMadeira") or 0
-	local p = estado:GetAttribute("EstoquePedra") or 0
-	return '<font color="#D8A066">' .. m .. ' madeira</font>   <font color="#B9BCC6">' .. p .. " pedra</font>"
+-- estoque com icones (madeira/pedra) no lugar das palavras; o fade anima cada pedaco
+local coreAlpha = Instance.new("NumberValue")
+coreAlpha.Value = 1
+local function paintCore()
+	local row = coreLbl and coreLbl:FindFirstChild("CustoLinha")
+	if not row then return end
+	local a = coreAlpha.Value
+	for _, d in ipairs(row:GetDescendants()) do
+		if d:IsA("TextLabel") then d.TextTransparency = 0.1 + 0.9 * a
+		elseif d:IsA("ImageLabel") then d.ImageTransparency = 0.05 + 0.95 * a
+		elseif d:IsA("UIStroke") then d.Transparency = 0.5 + 0.5 * a end
+	end
+end
+coreAlpha.Changed:Connect(paintCore)
+local function fillCore()
+	if not coreLbl then return end
+	coreLbl.Text = ""
+	Custos.Linha(coreLbl, { Madeira = estado:GetAttribute("EstoqueMadeira") or 0, Pedra = estado:GetAttribute("EstoquePedra") or 0 },
+		{ tamanho = 17, fonte = FONT, cor = Color3.new(1, 1, 1), separador = false, espaco = 5, mostrarZero = true, contorno = Color3.fromRGB(15, 15, 20) })
+	paintCore()
 end
 local function ensureCoreBB()
 	if coreBB and coreBB.Parent then return coreBB end
@@ -527,13 +565,12 @@ local coreShown = false
 local function setCoreShown(on)
 	if on == coreShown or not coreLbl then return end
 	coreShown = on
-	tween(coreLbl, 0.35, { TextTransparency = on and 0.15 or 1 })
-	tween(coreStroke, 0.35, { Transparency = on and 0.5 or 1 })
+	tween(coreAlpha, 0.35, { Value = on and 0 or 1 })
 end
 for _, k in ipairs({ "EstoqueMadeira", "EstoquePedra" }) do
 	estado:GetAttributeChangedSignal(k):Connect(function()
 		if coreLbl then
-			coreLbl.Text = stockText()
+			fillCore()
 			local sc = coreLbl:FindFirstChildOfClass("UIScale") or Instance.new("UIScale", coreLbl)
 			sc.Scale = 1.2
 			tween(sc, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
@@ -590,7 +627,7 @@ RunService.Heartbeat:Connect(function(dt)
 	local d = Vector3.new(esf.Position.X - root.Position.X, 0, esf.Position.Z - root.Position.Z).Magnitude
 	-- estoque de perto
 	if ensureCoreBB() then
-		if coreLbl.Text == "" then coreLbl.Text = stockText() end
+		if not coreLbl:FindFirstChild("CustoLinha") then fillCore() end
 		setCoreShown(d <= NUCLEO_PERTO)
 	end
 	-- feixe de longe

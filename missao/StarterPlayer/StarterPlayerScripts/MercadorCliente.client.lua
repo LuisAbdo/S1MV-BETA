@@ -67,7 +67,7 @@ local sizeC = Instance.new("UISizeConstraint"); sizeC.MaxSize = Vector2.new(620,
 
 local title = text(panel, { Position = UDim2.fromOffset(18, 10), Size = UDim2.new(1, -80, 0, 36), Text = "LOJA DO MERCADOR", TextSize = 28, TextColor3 = PAPER, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 21 })
 stroke(title, WOOD2, 2).ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
-local sub = text(panel, { Position = UDim2.fromOffset(18, 44), Size = UDim2.new(1, -36, 0, 18), Text = "Pago com o estoque do Núcleo (madeira e pedra que vocês entregaram)", TextSize = 13, FontFace = BOLD, TextColor3 = Color3.fromRGB(240, 210, 160), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 21 })
+local sub = text(panel, { Position = UDim2.fromOffset(18, 44), Size = UDim2.new(1, -36, 0, 18), Text = "Pago com o estoque do Núcleo (o que vocês entregaram)", TextSize = 13, FontFace = BOLD, TextColor3 = Color3.fromRGB(240, 210, 160), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 21 })
 local stockLbl = text(panel, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -62, 0, 14), Size = UDim2.fromOffset(240, 26), Text = "", TextSize = 15, FontFace = BOLD, TextColor3 = PAPER, TextXAlignment = Enum.TextXAlignment.Right, RichText = true, ZIndex = 21 })
 local close = Instance.new("TextButton")
 close.AnchorPoint = Vector2.new(1, 0)
@@ -127,17 +127,23 @@ for i, it in ipairs(M.Itens) do
 end
 
 local function refresh()
-	stockLbl.Text = '<font color="#F2C08A">' .. (estado:GetAttribute("EstoqueMadeira") or 0) .. ' madeira</font>  ·  <font color="#E6E8EE">' .. (estado:GetAttribute("EstoquePedra") or 0) .. " pedra</font>"
+	-- estoque com os icones de madeira/pedra no lugar das palavras
+	stockLbl.Text = ""
+	Custos.Linha(stockLbl, { Madeira = estado:GetAttribute("EstoqueMadeira") or 0, Pedra = estado:GetAttribute("EstoquePedra") or 0 },
+		{ tamanho = 16, fonte = BOLD, cor = PAPER, separador = "·", mostrarZero = true, alinhar = Enum.HorizontalAlignment.Right, espaco = 5, zindex = 22 })
 	for id, c in pairs(cards) do
 		local lv = player:GetAttribute(ATTR[id]) or 0
 		local max = #c.it.Niveis
 		c.lvl.Text = max > 1 and ("Nível " .. lv .. "/" .. max) or (lv > 0 and "Comprado" or "")
 		local cost = c.it.Niveis[lv + 1]
+		local row = c.btn:FindFirstChild("CustoLinha")
 		if not cost then
+			if row then row.Visible = false end
 			c.btn.Text = max > 1 and "MÁXIMO" or "COMPRADO"
 			c.btn.BackgroundColor3 = Color3.fromRGB(150, 140, 120)
 		else
-			c.btn.Text = Custos.Texto(cost)
+			c.btn.Text = ""
+			Custos.Linha(c.btn, cost, { tamanho = 17, fonte = FONT, cor = Color3.new(1, 1, 1), contorno = Color3.fromRGB(40, 70, 40), zindex = 23 })
 			c.btn.BackgroundColor3 = Custos.Tem(estado, cost) and GREEN or Color3.fromRGB(176, 120, 96)
 		end
 	end
@@ -150,11 +156,15 @@ local function open()
 	panel.Visible = true
 	sc.Scale = 0.85
 	tween(sc, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
-	sfx(SONS.UIAbrir)
+	sfx(SONS.MercadorAbrir or SONS.UIAbrir)
 end
 local function hide() panel.Visible = false end
 close.MouseButton1Click:Connect(hide)
 remotes:WaitForChild("AbrirMercador").OnClientEvent:Connect(open)
+-- som proprio da compra no Mercador
+remotes:WaitForChild("Efeito").OnClientEvent:Connect(function(kind, who)
+	if kind == "MercadorCompra" and who == player then sfx(SONS.MercadorCompra or SONS.Compra) end
+end)
 UserInputService.InputBegan:Connect(function(i, gp)
 	if not gp and panel.Visible and (i.KeyCode == Enum.KeyCode.Escape or i.KeyCode == Enum.KeyCode.Backspace) then hide() end
 end)

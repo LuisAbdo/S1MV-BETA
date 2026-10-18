@@ -255,6 +255,12 @@ return function(ctx)
 		TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 2, ZIndex = 61 }, tip)
 	local tipStats = label({ Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = "", RichText = true, TextSize = 12, FontFace = MONO, TextColor3 = WHITE,
 		TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 3, ZIndex = 61 }, tip)
+	-- custo com icones de madeira/pedra + situacao (falta / clique para construir)
+	local tipCost = new("Frame", { Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1, LayoutOrder = 4, ZIndex = 61 }, tip)
+	label({ Size = UDim2.fromOffset(62, 20), Text = "⚒ Custo", TextSize = 12, FontFace = MONO, TextColor3 = WHITE, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 61 }, tipCost)
+	local tipCostRow = new("Frame", { Position = UDim2.fromOffset(64, 0), Size = UDim2.new(1, -64, 1, 0), BackgroundTransparency = 1, ZIndex = 61 }, tipCost)
+	local tipStatus = label({ Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Text = "", RichText = true, TextSize = 12, FontFace = MONO, TextColor3 = WHITE,
+		TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, LayoutOrder = 5, ZIndex = 61 }, tip)
 	local tipKey
 	local UserInputService = game:GetService("UserInputService")
 
@@ -329,14 +335,14 @@ return function(ctx)
 					if ic.Raio then table.insert(lines, "◎ Raio " .. ic.Raio) end
 					if ic.Cura then table.insert(lines, "✚ Repara " .. ic.Cura .. "/s") end
 					table.insert(lines, "▣ Limite " .. ic.Limite .. " por jogador")
-					table.insert(lines, "⚒ Custo " .. Custos.Texto(ic.Custo))
+					Custos.Linha(tipCostRow, ic.Custo, { tamanho = 13, fonte = MONO, alinhar = Enum.HorizontalAlignment.Left, estoque = estado, zindex = 62 })
 					local falta = Custos.Falta(estado, ic.Custo)
 					if (estado:GetAttribute("CoreTier") or 1) < ic.TierMin then
-						table.insert(lines, '<font color="#FF7A7A">🔒 Evolua o Núcleo para o tier ' .. ic.TierMin .. "</font>")
+						tipStatus.Text = '<font color="#FF7A7A">🔒 Evolua o Núcleo para o tier ' .. ic.TierMin .. "</font>"
 					elseif falta then
-						table.insert(lines, '<font color="#FF7A7A">' .. falta .. " no estoque</font>")
+						tipStatus.Text = '<font color="#FF7A7A">Falta material no estoque</font>'
 					else
-						table.insert(lines, '<font color="#6EF0A0">Clique para construir</font>')
+						tipStatus.Text = '<font color="#6EF0A0">Clique para construir</font>'
 					end
 					tipStats.Text = table.concat(lines, "\n")
 					tip.Visible = true
@@ -355,7 +361,8 @@ return function(ctx)
 				local count = label({ AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 74), Size = UDim2.fromOffset(60, 14), Text = "0/" .. ic.Limite, TextSize = 11, FontFace = MONO, TextColor3 = GREY,
 					TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 23 }, card)
 				local buy = new("TextButton", { Position = UDim2.new(0, 12, 1, -42), Size = UDim2.new(1, -24, 0, 32), BackgroundColor3 = sec.Cor, BorderSizePixel = 0, AutoButtonColor = false,
-					Text = Custos.Texto(ic.Custo), FontFace = HEAVY, TextSize = 17, TextScaled = true, TextColor3 = BLACK, ZIndex = 23 }, card)
+					Text = "", FontFace = HEAVY, TextSize = 17, TextScaled = true, TextColor3 = BLACK, ZIndex = 23 }, card)
+				Custos.Linha(buy, ic.Custo, { tamanho = 15, fonte = HEAVY, cor = BLACK, zindex = 24 })
 				new("UITextSizeConstraint", { MaxTextSize = 16, MinTextSize = 9 }, buy)
 				new("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4) }, buy)
 				corner(buy, 7)
@@ -368,7 +375,7 @@ return function(ctx)
 					if (estado:GetAttribute("CoreTier") or 1) < ic.TierMin then fail("Exige Núcleo tier " .. ic.TierMin) return end
 					if c and c.full then fail("Limite deste item: " .. ic.Limite) return end
 					local falta = Custos.Falta(estado, ic.Custo)
-					if falta then fail(falta .. " - colete na floresta") return end
+					if falta then fail("Falta material - colete na floresta") return end
 					sfx(SONS.UIClique)
 					M.Close()
 					ctx.startBuild(key)
@@ -460,6 +467,8 @@ return function(ctx)
 			c.full = full
 			c.count.Text = have .. "/" .. c.ic.Limite
 			c.count.TextColor3 = full and Color3.fromRGB(255, 110, 110) or GREY
+			local row = c.buy:FindFirstChild("CustoLinha")
+			if row then row.Visible = not (locked or full) end
 			if locked then
 				c.buy.Text = "TIER " .. c.ic.TierMin
 				c.buy.BackgroundColor3 = DIM
@@ -470,7 +479,8 @@ return function(ctx)
 				c.buy.TextColor3 = Color3.fromRGB(255, 150, 150)
 			else
 				local ok = Custos.Tem(estado, c.ic.Custo)
-				c.buy.Text = Custos.Texto(c.ic.Custo)
+				c.buy.Text = ""
+				Custos.Linha(c.buy, c.ic.Custo, { tamanho = 15, fonte = HEAVY, cor = ok and BLACK or Color3.fromRGB(200, 200, 205), zindex = 24 })
 				c.buy.BackgroundColor3 = ok and c.sec.Cor or c.sec.Cor:Lerp(DIM, 0.65)
 				c.buy.TextColor3 = ok and BLACK or Color3.fromRGB(200, 200, 205)
 			end
