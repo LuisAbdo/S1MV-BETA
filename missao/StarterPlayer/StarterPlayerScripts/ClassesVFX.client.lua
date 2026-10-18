@@ -12,6 +12,9 @@ local player = Players.LocalPlayer
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local remotes = Shared:WaitForChild("Remotes")
 local SONS = require(Shared.Config.Sons)
+-- sons proprios de cada classe (Config/Sons.Classes); cai no som generico se faltar
+local SC = SONS.Classes or {}
+local function cs(classe, key, fallback) return (SC[classe] and SC[classe][key]) or fallback end
 
 local rng = Random.new()
 local camera = workspace.CurrentCamera
@@ -314,7 +317,7 @@ local function bigExplosion(pos, radius, color, opts)
 	emitter(a, { texture = TEX.fumaca, color = Color3.fromRGB(70, 64, 60), emission = 0, sizeSeq = NumberSequence.new({ NumberSequenceKeypoint.new(0, radius * 0.4), NumberSequenceKeypoint.new(1, radius * 1.1) }), transp = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.3), NumberSequenceKeypoint.new(1, 1) }), lifeMin = 1.2, lifeMax = 2.2, speedMin = 3, speedMax = 8, accel = Vector3.new(0, 6, 0), drag = 2, emit = 10 })
 	emitter(a, { texture = TEX.faisca, color = Color3.fromRGB(255, 210, 120), size = 0.5, lifeMin = 0.4, lifeMax = 0.9, speedMin = radius * 2, speedMax = radius * 3.5, accel = Vector3.new(0, -40, 0), emit = 30, drag = 1 })
 	if not opts.semDetritos then debris(g, opts.detritos or 7, Color3.fromRGB(85, 75, 65), radius * 1.6) end
-	sound(SONS.Explosao, pos, opts.vol or 1, opts.pitch)
+	sound(opts.som or SONS.Explosao, pos, opts.vol or 1, opts.pitch)
 	addShake(opts.shake or (0.25 + radius * 0.035), pos)
 	if isNear(pos, 40) then punchFov(opts.fov or 2.5) end
 end
@@ -324,6 +327,7 @@ local FX = {}
 
 -- granada: arco com rastro, piscando
 function FX.Granada(from, to, dur)
+	sound(cs("Soldado", "GranadaLanca", SONS.Habilidade), from)
 	local g = part({ shape = Enum.PartType.Ball, color = Color3.fromRGB(70, 90, 50), material = Enum.Material.Metal, size = Vector3.one * 1.1, cf = CFrame.new(from) })
 	local a0 = Instance.new("Attachment"); a0.Position = Vector3.new(0, 0.4, 0); a0.Parent = g
 	local a1 = Instance.new("Attachment"); a1.Position = Vector3.new(0, -0.4, 0); a1.Parent = g
@@ -349,7 +353,7 @@ function FX.Granada(from, to, dur)
 end
 
 function FX.Explosao(pos, radius, color, big)
-	bigExplosion(pos, radius, color, { shake = big and 0.6 or nil, fov = big and 4 or nil })
+	bigExplosion(pos, radius, color, { shake = big and 0.6 or nil, fov = big and 4 or nil, som = cs("Soldado", "GranadaExplode") })
 end
 
 -- onda de choque: soco no chao, poeira, pedras, anel duplo
@@ -375,7 +379,7 @@ function FX.Onda(pl, pos, radius)
 	end
 	debris(g, 12, Color3.fromRGB(110, 100, 85), 22)
 	if root then afterimage(char, col, 0.25) end
-	sound(SONS.Martelo, g, 1.2, 0.8)
+	sound(cs("Soldado", "Onda", SONS.Martelo), g)
 	addShake(0.65, g)
 	if isNear(g, 30) then punchFov(4) end
 end
@@ -407,7 +411,7 @@ function FX.Grito(pl, pos, radius, buffed, dur)
 		end
 	end
 	if isNear(g, radius + 10) then screenTint(red, 0.35, 0.6) end
-	sound(SONS.Corneta, g, 0.9, 1.15)
+	sound(cs("Soldado", "Grito", SONS.Corneta), g)
 	addShake(0.35, g)
 end
 
@@ -430,7 +434,7 @@ function FX.ChuvaMarca(center, radius, dur)
 		if disc.Parent then tween(disc, 0.4, { Transparency = 1 }) end
 		if edge.Parent then tween(edge, 0.4, { Transparency = 1 }) end
 	end)
-	sound(SONS.AlertaSpawn, g, 0.7, 1.3)
+	sound(cs("Soldado", "ChuvaAlerta", SONS.AlertaSpawn), g)
 end
 
 -- uma granada caindo do ceu (rastro de fogo), explode quando chega
@@ -446,7 +450,7 @@ function FX.GranadaCai(pos, radius, fall)
 	local tw = tween(b, fall, { CFrame = CFrame.lookAt(pos + Vector3.new(0, 0.6, 0), pos + (pos - top).Unit) }, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 	tw.Completed:Once(function()
 		b:Destroy()
-		bigExplosion(pos, radius, Color3.fromRGB(255, 130, 40), { detritos = 4, vol = 0.7, shake = 0.18, fov = 1.2 })
+		bigExplosion(pos, radius, Color3.fromRGB(255, 130, 40), { detritos = 4, vol = 0.7, shake = 0.18, fov = 1.2, som = cs("Soldado", "ChuvaExplode") })
 	end)
 end
 -- NINJA -------------------------------------------------------------------------------------
@@ -490,7 +494,7 @@ function FX.Dash(pl, start, finish, hits)
 			end
 		end
 	end
-	sound(SONS.Golpe, finish, 1, 1.4)
+	sound(cs("Ninja", "Avanco", SONS.Golpe), finish)
 	if pl == player then punchFov(6); addShake(0.2) end
 end
 
@@ -505,7 +509,7 @@ function FX.Fumaca(pos, radius, dur)
 	local e = emitter(cloud, { texture = TEX.fumaca, color = ColorSequence.new(Color3.fromRGB(205, 205, 215), Color3.fromRGB(150, 150, 170)), emission = 0, sizeSeq = NumberSequence.new({ NumberSequenceKeypoint.new(0, 5), NumberSequenceKeypoint.new(1, 12) }), transp = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.2, 0.2), NumberSequenceKeypoint.new(1, 1) }), lifeMin = 2, lifeMax = 3, speedMin = 0.5, speedMax = 2, shape = Enum.ParticleEmitterShape.Box, rate = 34, rot = 25 })
 	local e2 = emitter(cloud, { color = Color3.fromRGB(170, 140, 255), size = 0.5, lifeMin = 0.6, lifeMax = 1.2, speedMin = 0.5, speedMax = 2, shape = Enum.ParticleEmitterShape.Box, rate = 10 })
 	task.delay(dur, function() e.Enabled = false; e2.Enabled = false end)
-	sound(SONS.Portal, g, 0.8, 1.6)
+	sound(cs("Ninja", "Fumaca", SONS.Portal), g)
 	addShake(0.15, g)
 end
 
@@ -543,10 +547,11 @@ function FX.Shuriken(start, dirs, range)
 	end
 	local sw = anchor(start, 1)
 	emitter(sw, { color = Color3.fromRGB(170, 220, 255), size = 0.5, lifeMin = 0.2, lifeMax = 0.35, speedMin = 8, speedMax = 16, spread = Vector2.new(35, 35), emit = 14 })
-	sound(SONS.Girar, start, 1, 1.5)
+	sound(cs("Ninja", "Estrelas", SONS.Girar), start)
 end
 
 function FX.ShurikenHit(pos)
+	sound(cs("Ninja", "EstrelaAcerto"), pos)
 	flash(pos, Color3.fromRGB(170, 220, 255), 2.2, 0.12, 6)
 	local a = anchor(pos, 1)
 	emitter(a, { texture = TEX.faisca, color = Color3.fromRGB(220, 240, 255), size = 0.3, lifeMin = 0.15, lifeMax = 0.3, speedMin = 10, speedMax = 18, emit = 8 })
@@ -581,7 +586,7 @@ function FX.Sombra(pl, dur)
 		tween(cc, 0.4, { Saturation = -0.45, TintColor = Color3.fromRGB(215, 205, 255) })
 		task.delay(dur, function() tween(cc, 0.5, { Saturation = 0, TintColor = Color3.new(1, 1, 1) }); Debris:AddItem(cc, 0.6) end)
 	end
-	sound(SONS.Portal, root.Position, 1, 0.7)
+	sound(cs("Ninja", "Sombras", SONS.Portal), root.Position)
 end
 
 -- ENGENHEIRO --------------------------------------------------------------------------------
@@ -599,7 +604,11 @@ function FX.Implantar(pos, color, size)
 		groundRing(g, size * 1.6, col, 0.45, 0.25, 1)
 		local a = anchor(g + Vector3.new(0, 0.5, 0), 1.5)
 		emitter(a, { texture = TEX.faisca, color = col:Lerp(Color3.new(1, 1, 1), 0.4), size = 0.4, lifeMin = 0.3, lifeMax = 0.6, speedMin = 10, speedMax = 20, spread = Vector2.new(60, 60), accel = Vector3.new(0, -35, 0), emit = 22 })
-		sound(SONS.MontarTorreta, g, 0.9)
+		-- cada implante tem o seu som (MOGGITY azul, Isca laranja, LOVITY rosa)
+		local key = col == Color3.fromRGB(80, 200, 255) and cs("Engenheiro", "Moggity")
+			or col == Color3.fromRGB(255, 170, 60) and cs("Engenheiro", "Isca")
+			or col == Color3.fromRGB(255, 140, 200) and cs("Medico", "Lovity")
+		sound(key or SONS.MontarTorreta, g, key and 1 or 0.9)
 	end)
 end
 
@@ -633,7 +642,7 @@ function FX.Plasma(pos, radius, dur)
 		rings[2].CFrame = core.CFrame * CFrame.Angles(-t * 4, 0, t * 3)
 		l.Brightness = 2.5 + math.sin(t * 20)
 	end)
-	sound(SONS.GeradorZumbido, g, 1)
+	sound(cs("Engenheiro", "Plasma", SONS.GeradorZumbido), g)
 end
 
 -- cada descarga do plasma: raio do nucleo ate o ponto + explosao roxa
@@ -642,7 +651,7 @@ function FX.PlasmaZap(from, to, radius)
 	lightning(from, to, Color3.fromRGB(230, 200, 255), 0.25, 0.14, 8)
 	lightning(from, to, purple, 0.12, 0.2, 6)
 	bigExplosion(to, radius, purple, { semDetritos = true, semMarca = true, vol = 0.45, pitch = 1.4, shake = 0.08, fov = 0.6 })
-	sound(SONS.Laser, from, 0.6, 1.2)
+	sound(cs("Engenheiro", "PlasmaZap", SONS.Laser), from)
 end
 
 -- sobrecarga: arcos eletricos nas estruturas durante o tempo
@@ -670,7 +679,7 @@ function FX.Sobrecarga(dur)
 			task.wait(0.15)
 		end
 	end)
-	sound(SONS.GeradorZumbido, camera.CFrame.Position, 0.8, 1.3)
+	sound(cs("Engenheiro", "Sobrecarga", SONS.GeradorZumbido), camera.CFrame.Position)
 	addShake(0.2)
 end
 -- MEDICO ------------------------------------------------------------------------------------
@@ -709,7 +718,7 @@ function FX.Cura(from, pl, amount)
 			emitter(a, { color = ColorSequence.new(GREEN, Color3.new(1, 1, 1)), size = 0.7, lifeMin = 0.6, lifeMax = 1.1, speedMin = 3, speedMax = 7, accel = Vector3.new(0, 8, 0), emit = 26 })
 			for i = 1, 4 do task.delay(i * 0.08, function() floatIcon(target + Vector3.new(rng:NextNumber(-1.5, 1.5), 1, rng:NextNumber(-1.5, 1.5)), "+", GREEN, 34, 4, 0.9) end) end
 			if typeof(amount) == "number" then floatIcon(target + Vector3.new(0, 3.5, 0), "+" .. math.floor(amount), GREEN, 46, 3, 1.1) end
-			sound(SONS.Coracao, target, 0.9, 1.2)
+			sound(cs("Medico", "Dardo", SONS.Coracao), target)
 			if pl == player then screenTint(GREEN, 0.25, 0.5) end
 		end
 	end)
@@ -737,7 +746,7 @@ function FX.Fase(pl, start, finish)
 		local streak = part({ color = PINK, transparency = 0.3, size = Vector3.new(0.6, 0.6, d), cf = CFrame.lookAt(start, finish) * CFrame.new(0, 0, -d / 2), life = 0.4 })
 		tween(streak, 0.35, { Size = Vector3.new(0.05, 0.05, d), Transparency = 1 })
 	end
-	sound(SONS.Portal, finish, 0.9, 1.4)
+	sound(cs("Medico", "Fase", SONS.Portal), finish)
 	if pl == player then punchFov(5); screenTint(PINK, 0.3, 0.4) end
 end
 
@@ -764,7 +773,7 @@ function FX.Coro(pl, center, count)
 		task.delay(0.2 + i * 0.1, function() FX.Implantar(g + Vector3.new(math.cos(ang) * 7, 0, math.sin(ang) * 7), PINK, 3) end)
 	end
 	if isNear(g, 60) then screenTint(PINK, 0.35, 0.8) end
-	sound(SONS.NucleoFanfarra, g, 0.8, 1.1)
+	sound(cs("Medico", "Coro", SONS.NucleoFanfarra), g)
 	addShake(0.3, g)
 end
 

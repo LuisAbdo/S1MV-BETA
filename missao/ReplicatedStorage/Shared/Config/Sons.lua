@@ -1,8 +1,11 @@
 -- Config/Sons: TODOS os efeitos sonoros do jogo (no lugar dos sons classicos do Roblox).
 -- Fontes: Creator Store gratis (Pro Sound Effects, Daily Sounds e outros). Para trocar um som,
 -- basta mudar o ID aqui. V = volume base, P = velocidade (tom) base.
+-- Cada uso tem a SUA entrada (mesmo quando comeca com o mesmo ID), assim da para trocar um
+-- som sem mexer nos outros. Uma entrada pode ser uma LISTA { {Id..}, {Id..} }: o jogo sorteia
+-- uma a cada vez que toca.
 local function id(n) return "rbxassetid://" .. n end
-return {
+local SONS = {
 	-- ARMAS
 	Tiro = {
 		Padrao = { Id = id(133335170193696), V = 0.45 },      -- pistola
@@ -99,4 +102,90 @@ return {
 	-- evolucao do Nucleo
 	NucleoEvolui = { Id = id(138826200740867), V = 0.9, P = 0.75 },
 	NucleoFanfarra = { Id = id(7024302454), V = 0.7, P = 0.9 },          -- grilos
+
+	-- NUCLEO (efeitos visuais novos)
+	NucleoDano = { Id = id(9120858570), V = 0.5, P = 0.7 },          -- impacto no escudo do Nucleo
+	NucleoRachando = { Id = id(126645609816652), V = 0.45, P = 0.6 },  -- vida baixa: rachaduras
+	NucleoSuga = { Id = id(9125807267), V = 0.8, P = 1.7 },          -- vortice puxando os itens
+	NucleoEngole = { Id = id(3120909354), V = 0.5, P = 1.3 },         -- cada item entrando
+
+	-- CHEFES: presenca (tremor e coracao conforme chegam perto)
+	ChefePerto = { Id = id(9116795681), V = 0.6, P = 0.8 },           -- batida grave em loop
+	ChefePassos = { Id = id(124499547710959), V = 0.5, P = 1.1 },     -- passos pesados perto
+
+	-- GLITCITY
+	GlitchEstatica = { Id = id(91660275693179), V = 0.21, P = 0.6 },  -- chiado da cutscene (loop)
+	GlitchEstalo = { Id = id(138533090376585), V = 1, P = 0.45 },     -- bass drop da materializacao
+	GlitchRugido = { Id = id(116576934219692), V = 0.95, P = 0.7 },
+	GlitchEMP = { Id = id(91660275693179), V = 0.27, P = 0.5 },
+	GlitchVoxels = { Id = id(130869638485735), V = 0.5, P = 1.6 },
+	GlitchMorte = { Id = id(138533090376585), V = 1, P = 0.6 },
+
+	-- ARMADILHAS
+	Armadilha = {
+		Espinhos = { Id = id(139795256698131), V = 0.3 },
+		Gelo = { Id = id(122218831341898), V = 0.25, P = 0.8 },
+		Quicador = { Id = id(836796971), V = 0.4 },
+		Dardo = { Id = id(9119215650), V = 0.5, P = 1.3 },
+		Repulsor = { Id = id(138533090376585), V = 0.3, P = 1.4 },
+		Prensa = { Id = id(9120812564), V = 0.6, P = 0.6 },
+		Gas = { Id = id(120250063764346), V = 0.2, P = 0.7 },
+		Eletrico = { Id = id(115842676995967), V = 0.4, P = 1.5 },
+	},
+
+	-- MERCADOR / CORRIDA
+	MercadorAbrir = { Id = id(75547278361612), V = 0.3, P = 1.1 },
+	MercadorCompra = { Id = id(80736831159506), V = 0.6, P = 0.9 },
+	Cansado = { Id = id(136811265205147), V = 0.25, P = 1.3 },       -- stamina zerou
+
+	-- CLASSES: um som por habilidade (Z, X, C, Q e os efeitos delas)
+	Classes = {
+		Soldado = {
+			GranadaLanca = { Id = id(140692796870442), V = 0.45, P = 1.1 },  -- Z: arremesso
+			GranadaExplode = { Id = id(138533090376585), V = 0.75 },
+			Onda = { Id = id(9120812564), V = 0.72, P = 0.8 },              -- X: onda de choque
+			Grito = { Id = id(4624851445), V = 0.54, P = 1.15 },            -- C: grito de guerra
+			ChuvaAlerta = { Id = id(127119919079045), V = 0.32, P = 1.3 },  -- Q: marca da chuva
+			ChuvaExplode = { Id = id(139210252225248), V = 0.6, P = 1.1 },
+		},
+		Ninja = {
+			Avanco = { Id = id(139795256698131), V = 0.38, P = 1.4 },       -- Z
+			Fumaca = { Id = id(9125517884), V = 0.26, P = 1.45 },           -- X
+			Estrelas = { Id = id(87437544236708), V = 0.4, P = 1.12 },      -- C
+			EstrelaAcerto = { Id = id(132176641904643), V = 0.35, P = 1.5 },
+			Sombras = { Id = id(9125517884), V = 0.32, P = 0.63 },          -- Q
+		},
+		Engenheiro = {
+			Moggity = { Id = id(451660893), V = 0.4 },                      -- Z: torreta
+			Isca = { Id = id(130869638485735), V = 0.5, P = 1.2 },          -- X
+			Plasma = { Id = id(120250063764346), V = 0.22 },                -- C: campo
+			PlasmaZap = { Id = id(115842676995967), V = 0.21, P = 1.2 },
+			Sobrecarga = { Id = id(120250063764346), V = 0.18, P = 1.3 },   -- Q
+		},
+		Medico = {
+			Lovity = { Id = id(7024302454), V = 0.4, P = 1.3 },             -- Z
+			Dardo = { Id = id(9116795681), V = 0.45, P = 1.2 },             -- X: dardo curativo
+			Fase = { Id = id(9125517884), V = 0.29, P = 1.26 },             -- C: passo de fase
+			Coro = { Id = id(7024302454), V = 0.56, P = 0.99 },             -- Q: coro de lovities
+		},
+	},
 }
+
+-- listas { {Id..}, {Id..} } sorteiam uma entrada sempre que o codigo le .Id/.V/.P
+local sorteio = {
+	__index = function(t, k)
+		if (k == "Id" or k == "V" or k == "P") and #t > 0 then
+			local e = t[math.random(1, #t)]
+			return e[k]
+		end
+	end,
+}
+local function prep(t)
+	for _, v in pairs(t) do
+		if type(v) == "table" then
+			if #v > 0 and rawget(v, "Id") == nil then setmetatable(v, sorteio) else prep(v) end
+		end
+	end
+end
+prep(SONS)
+return SONS

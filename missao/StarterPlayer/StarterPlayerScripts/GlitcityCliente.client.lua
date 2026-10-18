@@ -153,7 +153,7 @@ local function cutscene(pos, T)
 	local cam = workspace.CurrentCamera
 	glitching = true
 	-- 1) ceu enlouquecido + estatica + congeladas na tela
-	local static = sound(SONS.UIErro, 0.7, 0.6, true)
+	local static = sound(SONS.GlitchEstatica or SONS.UIErro, 1, nil, true)
 	local t0 = os.clock()
 	while os.clock() - t0 < T.Glitch do
 		shake = 0.35 + 0.65 * ((os.clock() - t0) / T.Glitch)   -- tremor cresce junto com o glitch
@@ -238,8 +238,8 @@ local function cutscene(pos, T)
 	clearGlitch()
 	-- 4) estalo bitcrush / bass drop: o chefe aparece (o servidor cria agora)
 	if static then static:Destroy() end
-	sound(SONS.Explosao, 1.4, 0.45)
-	sound(SONS.RugidoChefe, 1, 0.7)
+	sound(SONS.GlitchEstalo or SONS.Explosao)
+	sound(SONS.GlitchRugido or SONS.RugidoChefe)
 	shakeFor(1.2, 0.5)
 	local flash = part({ shape = nil, color = Color3.new(1, 1, 1), size = Vector3.one * 4, cf = CFrame.new(pos + Vector3.new(0, 6, 0)), life = 0.6 })
 	flash.Shape = Enum.PartType.Ball
@@ -274,7 +274,7 @@ end
 
 -- EFEITOS DA LUTA ----------------------------------------------------------------------------
 local function emp(pos, radius, dur)
-	sound(SONS.UIErro, 0.9, 0.5)
+	sound(SONS.GlitchEMP or SONS.UIErro)
 	local ring = part({ size = Vector3.new(0.4, 4, 4), cf = CFrame.new(pos + Vector3.new(0, 0.5, 0)) * CFrame.Angles(0, 0, math.rad(90)), color = NEON[3], transparency = 0.2, life = 1 })
 	ring.Shape = Enum.PartType.Cylinder
 	tween(ring, 0.7, { Size = Vector3.new(0.2, radius * 2, radius * 2), Transparency = 1 }, Enum.EasingStyle.Quint)
@@ -340,9 +340,9 @@ remotes.Efeito.OnClientEvent:Connect(function(kind, a, b, c)
 	elseif kind == "GlitchRastro" and typeof(a) == "Vector3" then
 		trail(a)
 	elseif kind == "GlitchVoxels" then
-		sound(SONS.Construir, 0.8, 1.6)
+		sound(SONS.GlitchVoxels or SONS.Construir)
 	elseif kind == "GlitcityMorreu" and typeof(a) == "Vector3" then
-		sound(SONS.Explosao, 1.5, 0.6)
+		sound(SONS.GlitchMorte or SONS.Explosao)
 		for i = 1, 30 do
 			local b2 = part({ size = Vector3.one * rng:NextNumber(0.6, 2), cf = CFrame.new(a), color = NEON[(i % 3) + 1], life = 2 })
 			tween(b2, 1.6, { CFrame = CFrame.new(a + Vector3.new(rng:NextNumber(-20, 20), rng:NextNumber(4, 24), rng:NextNumber(-20, 20))), Transparency = 1 })

@@ -35,6 +35,15 @@ local function soundAt(pos, def, pitchJitter)
 	Debris:AddItem(a, 4)
 end
 local TIRO = { TorretaBasica = SONS.TorretaTiro, TorretaGelo = SONS.TorretaGelo, TorretaPesada = SONS.TorretaPesada }
+-- sons proprios das armadilhas (Config/Sons.Armadilha)
+local SA = SONS.Armadilha or {}
+local function trapSound(data, pos, def, every)
+	if not def then return end
+	local now = os.clock()
+	if every and now - (data.lastSnd or 0) < every then return end
+	data.lastSnd = now
+	soundAt(pos, def, 0.15)
+end
 
 local BuildService = {}
 local remotes, estado, Core, Enemy, Economy, Coleta
@@ -722,8 +731,9 @@ function BuildService:_trap(data, list, now, dt)
 			local bico = data.muzzle
 			local gas = bico and bico:FindFirstChild("Gas")
 			if gas then gas.Rate = hitAny and 18 or 2 end
+			if hitAny then trapSound(data, pos, SA.Gas, 1.5) end
 		elseif hitAny then
-			soundAt(pos, SONS.Golpe, 0.3)
+			trapSound(data, pos, SA.Espinhos or SONS.Golpe)
 		end
 	elseif key == "Lentidao" then
 		if data.tick < 0.25 then return end
@@ -732,6 +742,7 @@ function BuildService:_trap(data, list, now, dt)
 			if flatDist(e.pos, pos) <= ic.Raio then
 				Enemy:Slow(e.model, ic.Lentidao, 0.6)
 				if ic.Dano then Enemy:Damage(e.model, ic.Dano, pl) end
+				trapSound(data, pos, SA.Gelo, 0.8)
 			end
 		end
 	elseif key == "Quicador" then
@@ -749,7 +760,7 @@ function BuildService:_trap(data, list, now, dt)
 					data.head.CFrame = base * CFrame.new(0, 0.8, 0)
 					TweenService:Create(data.head, TweenInfo.new(0.35, Enum.EasingStyle.Bounce), { CFrame = base }):Play()
 				end
-				soundAt(pos, SONS.PuloInimigo or SONS.Golpe, 0.2)
+				trapSound(data, pos, SA.Quicador or SONS.PuloInimigo)
 				break
 			end
 		end
@@ -771,14 +782,14 @@ function BuildService:_trap(data, list, now, dt)
 			local alvo = hits[1].e
 			Enemy:Damage(alvo.model, ic.Dano, pl)
 			remotes.Efeito:FireAllClients("TorretaTiro", data.model, origin, alvo.pos, "Dardo")
-			soundAt(origin, SONS.Estilingue or SONS.Golpe, 0.2)
+			trapSound(data, origin, SA.Dardo or SONS.Golpe)
 		else
 			for _, h in ipairs(hits) do
 				if ic.Dano then Enemy:Damage(h.e.model, ic.Dano, pl) end
 				Enemy:Knockback(h.e.model, Vector3.new(fwd.X, 0, fwd.Z), ic.Forca)
 			end
 			boom(origin, 4, Color3.fromRGB(120, 200, 255))
-			soundAt(origin, SONS.Explosao, 0.2)
+			trapSound(data, origin, SA.Repulsor or SONS.Explosao)
 		end
 	elseif key == "Prensa" then
 		if now - (data.lastFire or 0) < ic.Cadencia then return end
@@ -796,7 +807,7 @@ function BuildService:_trap(data, list, now, dt)
 		end
 		for _, e in ipairs(under) do Enemy:Damage(e.model, ic.Dano, pl); Enemy:Stun(e.model, 0.6) end
 		boom(pos - Vector3.new(0, ic.Tamanho.Y / 2 - 0.5, 0), 5, Color3.fromRGB(200, 200, 210))
-		soundAt(pos, SONS.Martelo, 0.15)
+		trapSound(data, pos, SA.Prensa or SONS.Martelo)
 	elseif key == "GradeEletrica" then
 		if data.tick < (ic.Intervalo or 0.6) then return end
 		data.tick = 0
@@ -805,6 +816,7 @@ function BuildService:_trap(data, list, now, dt)
 				Enemy:Damage(e.model, ic.Dano, pl)
 				Enemy:Knockback(e.model, Vector3.new(e.pos.X - pos.X, 0, e.pos.Z - pos.Z), ic.Forca or 4)
 				remotes.Efeito:FireAllClients("TorretaTiro", data.model, pos + Vector3.new(0, 4, 0), e.pos, "Raio")
+				trapSound(data, pos, SA.Eletrico, 0.5)
 			end
 		end
 	end
