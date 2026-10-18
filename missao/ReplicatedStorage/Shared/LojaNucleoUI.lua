@@ -203,8 +203,9 @@ return function(ctx)
 
 	-- DIREITA: SECOES COLORIDAS -------------------------------------------------------------
 	-- abas: pulam para a secao (cada uma na cor da sua secao)
-	local tabs = new("Frame", { Position = UDim2.fromOffset(278, 66), Size = UDim2.fromOffset(530, 34), BackgroundTransparency = 1, ZIndex = 21 }, root)
-	new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }, tabs)
+	-- 6 abas dividem a largura toda da coluna (antes cada uma tinha 120 px e saiam da janela)
+	local tabs = new("Frame", { Position = UDim2.fromOffset(278, 66), Size = UDim2.fromOffset(530, 32), BackgroundTransparency = 1, ZIndex = 21 }, root)
+	new("UIListLayout", { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder }, tabs)
 	local tabBtns = {}
 	local scroll = new("ScrollingFrame", { Position = UDim2.fromOffset(278, 108), Size = UDim2.fromOffset(538, 426), BackgroundTransparency = 1, BorderSizePixel = 0, ScrollBarThickness = 5,
 		ScrollBarImageColor3 = GREY, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, ZIndex = 21 }, root)
@@ -220,9 +221,11 @@ return function(ctx)
 		end
 	end
 	for i, sec in ipairs(SECOES) do
-		local b = new("TextButton", { Size = UDim2.fromOffset(120, 34), BackgroundColor3 = sec.Cor, BackgroundTransparency = 0.82, BorderSizePixel = 0, AutoButtonColor = false,
-			Text = sec.Nome, FontFace = HEAVY, TextSize = 14, TextColor3 = sec.Cor, LayoutOrder = i, ZIndex = 22 }, tabs)
-		corner(b, 17)
+		local b = new("TextButton", { Size = UDim2.new(1 / #SECOES, -5 * (#SECOES - 1) / #SECOES, 1, 0), BackgroundColor3 = sec.Cor, BackgroundTransparency = 0.82, BorderSizePixel = 0, AutoButtonColor = false,
+			Text = sec.Nome, FontFace = HEAVY, TextScaled = true, TextColor3 = sec.Cor, LayoutOrder = i, ZIndex = 22 }, tabs)
+		new("UITextSizeConstraint", { MaxTextSize = 12, MinTextSize = 7 }, b)
+		new("UIPadding", { PaddingLeft = UDim.new(0, 5), PaddingRight = UDim.new(0, 5), PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6) }, b)
+		corner(b, 16)
 		stroke(b, sec.Cor, 1.5, 0.2)
 		hover(b, 1.06)
 		tabBtns[i] = { btn = b, cor = sec.Cor }
@@ -236,8 +239,9 @@ return function(ctx)
 			end
 		end)
 	end
-	local hint = label({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(0, 816, 0, 83), Size = UDim2.fromOffset(150, 20), Text = "[B] fecha", TextSize = 12, FontFace = MONO,
-		TextColor3 = GREY, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 22 }, root)
+	-- dica no cabecalho (antes ficava em cima das abas)
+	local hint = label({ AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -246, 0, 27), Size = UDim2.fromOffset(110, 20), Text = "[B] fecha", TextSize = 12, FontFace = MONO,
+		TextColor3 = BLACK, TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 23 }, root)
 
 	-- balao de detalhes (segue o mouse)
 	local tip = new("Frame", { Size = UDim2.fromOffset(250, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundColor3 = Color3.fromRGB(10, 12, 15), BackgroundTransparency = 0.04,
