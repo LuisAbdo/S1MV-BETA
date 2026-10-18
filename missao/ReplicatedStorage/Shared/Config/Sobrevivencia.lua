@@ -23,7 +23,7 @@ return {
 			AnelFloresta = 0.55, -- densidade minima da mata logo depois da clareira (arvores ao redor do Nucleo)
 			Rampa = 80,        -- distancia em que o relevo vai de plano a altura cheia
 			SpawnLivre = 10,   -- raio plano e sem arvores em volta do spawn dos jogadores
-			CasaDistancia = { 120, 175 }, -- distancia da Casa do Mercador ate o Nucleo
+			CasaDistancia = { 220, 300 }, -- distancia da Casa do Mercador ate o Nucleo (longe do spawn)
 			CasaClareira = 30, -- raio plano e sem arvores em volta da Casa
 		},
 		-- quantidade por chunk: { min, max } (a densidade varia por "manchas" de floresta)
@@ -71,6 +71,17 @@ return {
 		},
 	},
 
+	-- CORRIDA (Shift) -----------------------------------------------------------------
+	-- Stamina fica no servidor; o cliente so pede para correr e mostra a barra.
+	Corrida = {
+		Multiplicador = 1.55,  -- velocidade correndo = base x isto (16 -> ~25)
+		Maxima = 100,
+		Gasto = 22,            -- stamina por segundo correndo (~4,5 s de corrida cheia)
+		Recupera = 18,         -- stamina por segundo parado/andando
+		AtrasoRecuperar = 0.8, -- segundos sem correr antes de recuperar
+		MinimoVoltar = 25,     -- se zerar, so corre de novo depois de recuperar isto
+	},
+
 	-- NUCLEO (estoque) ----------------------------------------------------------------
 	Succao = {
 		Raio = 26,             -- clicar no Nucleo suga os itens soltos ate esta distancia
@@ -85,6 +96,7 @@ return {
 	Glitcity = {
 		Wave = 15,
 		DistanciaSurgir = 70,          -- surge na floresta, a esta distancia do Nucleo
+		RaioLivre = 22,                -- procura o trecho com menos arvores neste raio (cutscene limpa)
 		Cutscene = { Glitch = 3, Camera = 1.4, Blocos = 2.2, Texto = 2.6 }, -- segundos de cada etapa
 		EMP = { Intervalo = 11, Raio = 32, Duracao = 4 },        -- desliga as torres perto
 		Voxels = { Intervalo = 9, Quantidade = 8, Raio = 10, Tamanho = 3, Duracao = 7 }, -- barreiras

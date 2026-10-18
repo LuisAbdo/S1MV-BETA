@@ -20,7 +20,7 @@ Fluxo depois de cada mudança no Roblox Studio:
    um PR aberto para `main`.
 
 ## Bootstrap
-- `ServerScriptService/Bootstrap` limpo tem **1564 bytes** (com MercadorService e GlitcityService) e termina na linha
+- `ServerScriptService/Bootstrap` limpo tem **1583 bytes** (com MercadorService, GlitcityService e CorridaService) e termina na linha
   `print("[Bootstrap] Servicos iniciados: " .. table.concat(ORDER, ", "))`. Qualquer coisa
   depois disso é o backdoor do plugin — apagar antes de exportar.
 - Serviço novo entra na lista `ORDER` (e o tamanho de referência acima muda).
