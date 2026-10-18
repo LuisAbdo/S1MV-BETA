@@ -82,6 +82,16 @@ return {
 		MinimoVoltar = 25,     -- se zerar, so corre de novo depois de recuperar isto
 	},
 
+	-- PRESENCA DOS CHEFES (Verity Boss e Glitcity) ---------------------------------------
+	-- Quanto mais perto, mais a tela treme, as bordas escurecem e o coracao bate mais rapido.
+	Presenca = {
+		Longe = 110,           -- a partir desta distancia comeca a sentir
+		Perto = 10,            -- intensidade maxima
+		Tremor = 1.1,          -- graus de tremor no maximo
+		Passo = 0.55,          -- segundos entre os "passos" pesados (tranco extra)
+		Vinheta = 0.7,         -- quanto as bordas escurecem no maximo (0-1)
+	},
+
 	-- NUCLEO (estoque) ----------------------------------------------------------------
 	Succao = {
 		Raio = 26,             -- clicar no Nucleo suga os itens soltos ate esta distancia
