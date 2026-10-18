@@ -197,16 +197,21 @@ function AllyService:SpawnLovity(owner, pos, cfg, mult)
 	body.CFrame = CFrame.new(g + Vector3.new(0, 1.8, 0))
 	body.Parent = model
 	model.PrimaryPart = body
-	dressWith(body, "Lovity", 4.8)
-	-- rosto do Lovity (Config/Rostos); 0 = mantem o rosto do modelo
+	-- rosto do Lovity (Config/Rostos): com rosto proprio ele fica igual aos veritys (bola rosa +
+	-- decal na frente); sem rosto (0) usa o modelo feito no Blender
 	local okR, Rostos = pcall(require, Shared.Config:FindFirstChild("Rostos"))
 	local faceId = okR and type(Rostos) == "table" and tonumber(Rostos.Lovity) or 0
 	if faceId > 0 then
+		for _, old in ipairs(body:GetChildren()) do
+			if old:IsA("Decal") then old:Destroy() end
+		end
 		local d = Instance.new("Decal")
 		d.Name = "Rosto"
 		d.Face = Enum.NormalId.Front
 		d.Texture = "rbxassetid://" .. faceId
 		d.Parent = body
+	else
+		dressWith(body, "Lovity", 4.8)
 	end
 	local t = workspace:GetServerTimeNow()
 	model:SetAttribute("Chao", g)

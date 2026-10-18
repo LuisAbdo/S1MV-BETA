@@ -75,7 +75,15 @@ local function buildModel()
 	body.Name = "Corpo"
 	body.Anchored = true; body.CanCollide = false; body.CanTouch = false; body.CanQuery = true
 	body.Size = Vector3.one * 4.4
-	body.Color = Color3.fromRGB(120, 205, 255)
+	body.Color = Color3.fromRGB(34, 139, 34) -- verde floresta (Forest green)
+	-- rosto proprio (Config/Rostos.Curiosity)
+	local okR, Rostos = pcall(require, ReplicatedStorage.Shared.Config:FindFirstChild("Rostos"))
+	local faceId = okR and type(Rostos) == "table" and tonumber(Rostos.Curiosity) or 0
+	if faceId > 0 then
+		for _, d in ipairs(body:GetDescendants()) do
+			if d:IsA("Decal") and d.Face == Enum.NormalId.Front then d.Texture = "rbxassetid://" .. faceId end
+		end
+	end
 	body.CFrame = CFrame.lookAt(center, center + Vector3.new(0, 0, 10)) -- olhando para o spawn dos jogadores
 	body.Parent = model
 	model.PrimaryPart = body
