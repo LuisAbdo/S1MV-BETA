@@ -768,6 +768,23 @@ function FX.Coro(pl, center, count)
 	addShake(0.3, g)
 end
 
+-- ARMADILHAS DE PAREDE / GRADE ELETRICA (disparos vindos do BuildService) ---------------------
+remotes.Efeito.OnClientEvent:Connect(function(kind, _, from, to, estilo)
+	if kind ~= "TorretaTiro" or typeof(from) ~= "Vector3" or typeof(to) ~= "Vector3" then return end
+	if estilo == "Raio" then
+		lightning(from, to, Color3.fromRGB(255, 230, 90), 0.2, 0.12, 6)
+		flash(to, Color3.fromRGB(255, 240, 150), 2.5, 0.12, 8)
+	else
+		local d = (to - from).Magnitude
+		if d < 0.5 then return end
+		local dart = part({ color = Color3.fromRGB(230, 220, 200), size = Vector3.new(0.25, 0.25, 1.4), cf = CFrame.lookAt(from, to) })
+		tween(dart, math.min(0.25, d / 90), { CFrame = CFrame.lookAt(to, to + (to - from).Unit) }, Enum.EasingStyle.Linear).Completed:Once(function()
+			dart:Destroy()
+			flash(to, Color3.fromRGB(255, 200, 140), 1.6, 0.1, 5)
+		end)
+	end
+end)
+
 -- DESPACHO -----------------------------------------------------------------------------------
 remotes.Efeito.OnClientEvent:Connect(function(kind, name, ...)
 	if kind ~= "ClasseFX" or typeof(name) ~= "string" then return end

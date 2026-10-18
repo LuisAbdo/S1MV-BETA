@@ -21,9 +21,12 @@ local BG, CARD, CARD2 = Color3.fromRGB(15, 17, 21), Color3.fromRGB(24, 28, 34), 
 local GREY, DIM = Color3.fromRGB(150, 156, 164), Color3.fromRGB(70, 74, 82)
 
 local SECOES = {
-	{ Nome = "DEFESA", Sub = "Barreiras e armadilhas para segurar o caminho", Cor = Color3.fromRGB(255, 150, 60), Itens = { "Barricada", "Muro", "BarricadaReforcada", "Portao", "Mina" } },
+	{ Nome = "DEFESA", Sub = "Barreiras para segurar o caminho", Cor = Color3.fromRGB(255, 150, 60), Itens = { "Barricada", "Muro", "MuroTiro", "BarricadaReforcada", "Portao" } },
+	{ Nome = "CONSTRUÇÃO", Sub = "Peças de grade para fechar a base em 360° (empilham)", Cor = Color3.fromRGB(210, 170, 110), Itens = { "PisoReforcado", "Teto", "Rampa" } },
+	{ Nome = "ARMADILHAS", Sub = "Chão, parede e teto: os veritys passam e sofrem", Cor = Color3.fromRGB(255, 90, 90), Itens = { "Mina", "Espinhos", "Lentidao", "Quicador", "LancaDardos", "Repulsor", "Prensa", "EmissorGas" } },
 	{ Nome = "TORRETAS", Sub = "Atiram sozinhas nos veritys perto", Cor = Color3.fromRGB(70, 175, 255), Itens = { "TorretaBasica", "TorretaGelo", "LancaChamas", "TorretaPesada" } },
 	{ Nome = "SUPORTE", Sub = "Reparam e protegem as outras estruturas", Cor = Color3.fromRGB(90, 230, 140), Itens = { "Drone", "GeradorEscudo" } },
+	{ Nome = "AVANÇADAS", Sub = "Liberam com a evolução do Núcleo", Cor = Color3.fromRGB(180, 130, 255), Itens = { "GradeEletrica", "CampoForca", "Cupula" } },
 }
 
 local function new(class, props, parent)
@@ -88,6 +91,21 @@ local DESC = {
 	TorretaPesada = "Canhão de longo alcance com explosão em área.",
 	Drone = "Voa sobre a base e conserta as estruturas em volta.",
 	GeradorEscudo = "Cria uma bolha que reduz o dano nas estruturas perto dele.",
+	Portao = "Abre sozinho para os jogadores. Os veritys batem nele como num muro.",
+	MuroTiro = "Muro com fenda: segura os veritys, mas você e os tiros passam pela abertura.",
+	PisoReforcado = "Base para armadilhas ou para um segundo andar. Pode ir em cima de muros.",
+	Teto = "Cobre o Núcleo e as torres. Coloque em cima dos muros para fechar a base.",
+	Rampa = "Sobe rápido para plataformas e atira de cima.",
+	Espinhos = "Dano constante em quem pisa. Ótima nos corredores de entrada.",
+	Lentidao = "Gelo no chão: os veritys andam 50% mais devagar em cima.",
+	Quicador = "Arremessa os veritys para trás, longe do Núcleo.",
+	LancaDardos = "Atira em linha reta quando um verity passa na frente.",
+	Repulsor = "Empurra uma fileira de veritys de volta pelo corredor.",
+	Prensa = "Esmaga quem passa por baixo: muito dano de uma vez.",
+	EmissorGas = "Nuvem de gás que machuca grupos de veritys fracos.",
+	GradeEletrica = "Portão que abre para jogadores e eletrocuta os veritys que encostam.",
+	CampoForca = "Parede de laser: jogadores e tiros passam, veritys não.",
+	Cupula = "Domo em volta do Núcleo que segura o dano até quebrar.",
 }
 
 local function tierColor(tier, t)
@@ -244,7 +262,14 @@ return function(ctx)
 		elseif ic.Tipo == "Mina" then return "Explode: " .. ic.Dano .. " de dano", "Raio " .. ic.Raio
 		elseif ic.Tipo == "Drone" then return "Repara " .. ic.Cura .. " vida/s", "Raio " .. ic.Raio
 		elseif ic.Tipo == "Gerador" then return "-" .. math.floor(ic.Reducao * 100) .. "% de dano recebido", "Raio " .. ic.Raio
+		elseif ic.Tipo == "Armadilha" then
+			if ic.Lentidao then return "Lentidão " .. math.floor(ic.Lentidao * 100) .. "%", "Não bloqueia" end
+			if ic.Forca and not ic.Dano then return "Empurra os veritys", "A cada " .. ic.Cadencia .. "s" end
+			return "Dano " .. (ic.Dano or 0) .. (ic.Intervalo and (" a cada " .. ic.Intervalo .. "s") or ""), ic.Portao and "Portão elétrico" or (ic.NaoBloqueia and "Não bloqueia" or "Vida " .. ic.Vida)
+		elseif ic.Tipo == "Suporte" then return "Segura o dano do Núcleo", "Vida " .. ic.Vida
 		end
+		if ic.Empilhavel then return "Peça de grade (empilha)", "Vida " .. ic.Vida end
+		if ic.PassaJogador then return "Jogadores e tiros passam", "Vida " .. ic.Vida end
 		return "Bloqueia o caminho", "Vida " .. ic.Vida
 	end
 
