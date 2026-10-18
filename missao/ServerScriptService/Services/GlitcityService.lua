@@ -23,17 +23,38 @@ local NEON = { Color3.fromRGB(255, 230, 40), Color3.fromRGB(255, 70, 200), Color
 local function log(...) print("[Glitcity]", ...) end
 local function flat(v) return Vector3.new(v.X, 0, v.Z) end
 
--- ponto de surgimento: na floresta, entre o Nucleo e a borda do lado de spawn
+-- ponto de surgimento: perto do lado de spawn, mas no trecho com MENOS arvores em volta
+-- (assim a cutscene nao fica escondida atras da vegetacao)
+local function treesNear(p, radius)
+	local n = 0
+	for _, m in ipairs(CollectionService:GetTagged("Recurso")) do
+		if m:IsA("Model") and m:GetAttribute("Recurso") ~= "Rocha" then
+			local pp = m.PrimaryPart
+			if pp and flat(pp.Position - p).Magnitude < radius then n += 1 end
+		end
+	end
+	return n
+end
+
 local function spawnPoint()
-	local ang = rng:NextNumber(0, math.pi * 2)
+	local baseAng = rng:NextNumber(0, math.pi * 2)
 	local p1 = estado:GetAttribute("SpawnPos1")
 	if typeof(p1) == "Vector3" then
 		local d = flat(p1 - Core.Position)
-		if d.Magnitude > 1 then ang = math.atan2(d.Z, d.X) end
+		if d.Magnitude > 1 then baseAng = math.atan2(d.Z, d.X) end
 	end
-	local r = Cfg.DistanciaSurgir
-	local x, z = Core.Position.X + math.cos(ang) * r, Core.Position.Z + math.sin(ang) * r
-	return Vector3.new(x, Chunk:HeightAt(x, z), z)
+	local best, bestScore = nil, math.huge
+	for i = 0, 23 do
+		local ang = baseAng + (i % 2 == 0 and 1 or -1) * math.ceil(i / 2) * (math.pi / 12)
+		for _, r in ipairs({ Cfg.DistanciaSurgir, Cfg.DistanciaSurgir * 0.8, Cfg.DistanciaSurgir * 1.2 }) do
+			local x, z = Core.Position.X + math.cos(ang) * r, Core.Position.Z + math.sin(ang) * r
+			local p = Vector3.new(x, Chunk:HeightAt(x, z), z)
+			-- arvores perto contam muito; desviar do lado de spawn conta pouco
+			local score = treesNear(p, Cfg.RaioLivre or 22) * 10 + math.ceil(i / 2) * 0.3
+			if score < bestScore then best, bestScore = p, score end
+		end
+	end
+	return best
 end
 
 local function bossData()

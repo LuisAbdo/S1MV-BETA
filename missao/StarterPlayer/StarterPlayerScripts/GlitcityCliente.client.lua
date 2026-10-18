@@ -88,6 +88,22 @@ for i, y in ipairs({ 0, 1 }) do
 end
 
 local glitching = false
+
+-- TREMOR DE TELA: aplicado depois da camera do Roblox (funciona em Custom e Scriptable)
+local shake = 0
+RunService:BindToRenderStep("GlitchShake", Enum.RenderPriority.Camera.Value + 1, function()
+	if shake <= 0 then return end
+	local cam = workspace.CurrentCamera
+	local a = shake
+	cam.CFrame = cam.CFrame
+		* CFrame.new(rng:NextNumber(-a, a) * 0.6, rng:NextNumber(-a, a) * 0.6, 0)
+		* CFrame.Angles(math.rad(rng:NextNumber(-a, a) * 1.5), math.rad(rng:NextNumber(-a, a) * 1.5), math.rad(rng:NextNumber(-a, a) * 2))
+end)
+local function shakeFor(amount, dur)
+	shake = math.max(shake, amount)
+	task.delay(dur, function() if shake <= amount then shake = 0 end end)
+end
+
 local function glitchFrame()
 	for _, b in ipairs(bars) do
 		if rng:NextNumber() < 0.6 then
@@ -140,6 +156,7 @@ local function cutscene(pos, T)
 	local static = sound(SONS.UIErro, 0.7, 0.6, true)
 	local t0 = os.clock()
 	while os.clock() - t0 < T.Glitch do
+		shake = 0.35 + 0.65 * ((os.clock() - t0) / T.Glitch)   -- tremor cresce junto com o glitch
 		local day = rng:NextNumber() < 0.5
 		Lighting.ClockTime = day and 13 or 0.5
 		Lighting.Brightness = day and 3 or 0.4
@@ -157,6 +174,7 @@ local function cutscene(pos, T)
 		end
 	end
 	clearGlitch()
+	shake = 0
 	-- 2) HUD some, faixas pretas e a camera vai para a floresta
 	hideHud(true)
 	for _, f in ipairs(letterbox) do tween(f, 0.4, { Size = UDim2.new(1, 0, 0.11, 0) }) end
@@ -168,7 +186,32 @@ local function cutscene(pos, T)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	local from = root and Vector3.new(pos.X - root.Position.X, 0, pos.Z - root.Position.Z) or Vector3.new(1, 0, 0)
 	from = from.Magnitude > 0.1 and from.Unit or Vector3.new(1, 0, 0)
-	local shot = CFrame.lookAt(pos - from * 34 + Vector3.new(0, 14, 0), pos + Vector3.new(0, 6, 0))
+	-- escolhe um angulo de camera sem arvore/folhas na frente do ponto de surgimento
+	local shot
+	do
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { fx, player.Character }
+		local look = pos + Vector3.new(0, 6, 0)
+		local baseAng = math.atan2(-from.Z, -from.X)
+		local best, bestScore = nil, math.huge
+		for i = 0, 15 do
+			local ang = baseAng + (i % 2 == 0 and 1 or -1) * math.ceil(i / 2) * (math.pi / 8)
+			for _, dist in ipairs({ 30, 22 }) do
+				local camPos = pos + Vector3.new(math.cos(ang) * dist, 14, math.sin(ang) * dist)
+				local blocked = 0
+				for _, off in ipairs({ Vector3.zero, Vector3.new(0, 4, 0), Vector3.new(0, -3, 0) }) do
+					local tgt = look + off
+					local hit = workspace:Raycast(camPos, (tgt - camPos) * 0.92, params)
+					if hit then blocked += 1 end
+				end
+				local score = blocked * 10 + i * 0.1 + (dist == 22 and 0.5 or 0)
+				if score < bestScore then best, bestScore = camPos, score end
+			end
+			if bestScore < 1 then break end
+		end
+		shot = CFrame.lookAt(best or (pos - from * 30 + Vector3.new(0, 14, 0)), look)
+	end
 	tween(cam, T.Camera, { CFrame = shot }, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
 	task.wait(T.Camera)
 	-- 3) blocos neon subindo do chao em gravidade zero
@@ -197,6 +240,7 @@ local function cutscene(pos, T)
 	if static then static:Destroy() end
 	sound(SONS.Explosao, 1.4, 0.45)
 	sound(SONS.RugidoChefe, 1, 0.7)
+	shakeFor(1.2, 0.5)
 	local flash = part({ shape = nil, color = Color3.new(1, 1, 1), size = Vector3.one * 4, cf = CFrame.new(pos + Vector3.new(0, 6, 0)), life = 0.6 })
 	flash.Shape = Enum.PartType.Ball
 	tween(flash, 0.5, { Size = Vector3.one * 40, Transparency = 1 })
@@ -215,7 +259,7 @@ local function cutscene(pos, T)
 		warnShadow.Text = avisoLbl.Text
 		avisoLbl.Position = UDim2.new(0.5, rng:NextInteger(-6, 6), 0.42, rng:NextInteger(-3, 3))
 		warnShadow.Position = avisoLbl.Position + UDim2.fromOffset(rng:NextInteger(-8, 8), rng:NextInteger(-3, 3))
-		if rng:NextNumber() < 0.2 then glitchFrame() else clearGlitch() end
+		if rng:NextNumber() < 0.2 then glitchFrame(); shakeFor(0.5, 0.1) else clearGlitch() end
 		task.wait(0.06)
 	end
 	clearGlitch()
@@ -256,6 +300,7 @@ local function emp(pos, radius, dur)
 	end
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	if root and (root.Position - pos).Magnitude <= radius * 1.5 and not glitching then
+		shakeFor(0.6, 0.3)
 		task.spawn(function()
 			for _ = 1, 5 do glitchFrame(); task.wait(0.05) end
 			clearGlitch()
@@ -283,6 +328,7 @@ remotes.Efeito.OnClientEvent:Connect(function(kind, a, b, c)
 		task.spawn(function()
 			local ok, err = pcall(cutscene, a, b)
 			if not ok then
+				shake = 0
 				warn("[GlitcityCliente] " .. tostring(err))
 				workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 				hideHud(false)
@@ -301,6 +347,7 @@ remotes.Efeito.OnClientEvent:Connect(function(kind, a, b, c)
 			local b2 = part({ size = Vector3.one * rng:NextNumber(0.6, 2), cf = CFrame.new(a), color = NEON[(i % 3) + 1], life = 2 })
 			tween(b2, 1.6, { CFrame = CFrame.new(a + Vector3.new(rng:NextNumber(-20, 20), rng:NextNumber(4, 24), rng:NextNumber(-20, 20))), Transparency = 1 })
 		end
+		shakeFor(0.9, 0.5)
 		task.spawn(function() for _ = 1, 8 do glitchFrame(); task.wait(0.05) end; clearGlitch() end)
 	end
 end)
