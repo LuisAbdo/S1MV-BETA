@@ -391,6 +391,8 @@ function ChunkService:ResetRun()
 	newSeed()
 	-- o centro fica pronto na hora (ninguem nasce caindo na agua)
 	self:GenerateAround(origin, C.Sincrono)
+	-- o chao em volta da Casa do Mercador tambem fica pronto (ela pode estar fora do raio inicial)
+	if casaPos then self:GenerateAround(casaPos, 1) end
 	task.spawn(function()
 		while runId == my do
 			local n = self:GenerateAround(origin, C.RaioInicial, 4)

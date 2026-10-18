@@ -104,6 +104,20 @@ function MercadorService:SpawnCasa()
 	local ground = Chunk:HeightAt(pos.X, pos.Z)
 	local target = CFrame.fromMatrix(Vector3.new(pos.X, ground - floorOff + 0.05, pos.Z), right, Vector3.yAxis)
 	casa:PivotTo(target)
+	-- plataforma de grama embaixo da casa (com studs): nunca fica flutuando sobre degraus/vazio
+	local base = Instance.new("Part")
+	base.Name = "PlataformaGrama"
+	base.Anchored = true
+	base.Material = Enum.Material.Plastic
+	base.Color = Color3.fromRGB(76, 140, 58)
+	base.TopSurface = Enum.SurfaceType.Studs
+	base.BottomSurface = Enum.SurfaceType.Inlet
+	local depth = 24
+	base.Size = Vector3.new(sz.X + 22, depth, sz.Z + 14)
+	-- um pouco deslocada para a frente (lado da porta) para caber o balcao e o NPC
+	base.CFrame = target * CFrame.new(5, 0, 0)
+	base.Position = Vector3.new(base.Position.X, ground + 0.05 - depth / 2, base.Position.Z)
+	base.Parent = casa
 	casa.Parent = workspace
 	-- a casa e um bloco macico: o NPC fica na frente da porta, de costas para ela, atras de um balcao
 	local floorY = ground + 0.05
