@@ -76,7 +76,8 @@ updateScale()
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
 
 -- TOPO: WAVE / START ----------------------------------------------------------
-local waveGroup = new("Frame", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 6), Size = UDim2.fromOffset(186, 46), BackgroundColor3 = C.mint, BorderSizePixel = 0 }, gui)
+-- aviso do dia: aparece so quando amanhece ("DIA N") e some com fade depois de 10 s
+local waveGroup = new("CanvasGroup", { AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0.16, 0), Size = UDim2.fromOffset(186, 46), BackgroundColor3 = C.mint, BorderSizePixel = 0, GroupTransparency = 1, Visible = false }, gui)
 new("UIStroke", { Thickness = 2, Color = Color3.fromRGB(150, 245, 200), Transparency = 0.3 }, waveGroup)
 local waveText = label({ Size = UDim2.fromScale(1, 1), Text = "WAVE 1", TextSize = 30, TextColor3 = C.black }, waveGroup)
 local startBox = new("Frame", { Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(0, 46), BackgroundColor3 = C.black, BorderSizePixel = 0, ClipsDescendants = true }, waveGroup)
@@ -420,6 +421,35 @@ Players.PlayerAdded:Connect(watchPlayer)
 
 -- ATUALIZACAO -----------------------------------------------------------------
 local lastPhase, lastWave = nil, nil
+
+-- banner do dia: entra, fica `hold` segundos e sai com fade (hold nil = fica)
+local bannerToken = 0
+local function showBanner(text, hold)
+	bannerToken += 1
+	local my = bannerToken
+	waveText.Text = text
+	waveGroup.Visible = true
+	waveGroup.GroupTransparency = 1
+	waveGroup.Size = UDim2.fromOffset(150, 38)
+	TweenService:Create(waveGroup, TweenInfo.new(0.45, Enum.EasingStyle.Back), { GroupTransparency = 0, Size = UDim2.fromOffset(186, 46) }):Play()
+	if hold then
+		task.delay(hold, function()
+			if bannerToken ~= my then return end
+			local tw = TweenService:Create(waveGroup, TweenInfo.new(1.2), { GroupTransparency = 1 })
+			tw:Play()
+			tw.Completed:Wait()
+			if bannerToken == my then waveGroup.Visible = false end
+		end)
+	end
+end
+local function hideBanner()
+	if not waveGroup.Visible then return end
+	bannerToken += 1
+	local my = bannerToken
+	local tw = TweenService:Create(waveGroup, TweenInfo.new(0.4), { GroupTransparency = 1 })
+	tw:Play()
+	tw.Completed:Connect(function() if bannerToken == my then waveGroup.Visible = false end end)
+end
 local function playStart()
 	startBox.Size = UDim2.fromOffset(130, 46)
 	task.delay(2.5, function()
@@ -530,33 +560,27 @@ RunService.RenderStepped:Connect(function(dt)
 	moneyVal.Text = fmt(player:GetAttribute("Moedas") or 0)
 	local fase = estado:GetAttribute("Fase") or "Aguardando"
 	local wave = estado:GetAttribute("Wave") or 0
-	-- topo
-	-- topo: so o contador de dias (sem waves, sem contagem, sem chefe)
+	-- topo: so a barra do Nucleo. O "DIA N" aparece quando amanhece e some sozinho.
 	nextGroup.Visible = false
 	boss.Visible = false
+	coreBar.Position = UDim2.new(0.5, 0, 0, 10)
+	leftText.Position = UDim2.new(0.5, 0, 0, 36)
 	if fase == "Dia" then
-		waveGroup.Visible = true
-		waveText.Text = "DIA " .. math.max(1, wave)
 		leftText.Text = ""
-		coreBar.Position = UDim2.new(0.5, 0, 0, 58)
+		if lastPhase ~= "Dia" or lastWave ~= wave then showBanner("DIA " .. math.max(1, wave), 10) end
 	elseif fase == "Noite" then
-		waveGroup.Visible = true
-		waveText.Text = "NOITE " .. wave
-		coreBar.Position = UDim2.new(0.5, 0, 0, 58)
+		hideBanner()
 		local r = estado:GetAttribute("Restantes") or estado:GetAttribute("InimigosVivos") or 0
 		leftText.Text = r > 0 and (r .. (r == 1 and " verity" or " veritys")) or ""
-	else
-		waveGroup.Visible = true
-		nextGroup.Visible = false
-		waveText.Text = fase == "Derrota" and "DERROTA" or "DIA " .. math.max(1, wave)
-		if fase == "Aguardando" and estado:GetAttribute("EsperandoGrupo") then
-			waveText.Text = "GRUPO " .. (estado:GetAttribute("GrupoChegou") or 0) .. "/" .. (estado:GetAttribute("GrupoTotal") or 1)
-			leftText.Text = "aguardando o grupo chegar..."
-		end
+	elseif fase == "Derrota" then
 		leftText.Text = ""
-		coreBar.Position = UDim2.new(0.5, 0, 0, 58)
+		if lastPhase ~= "Derrota" then showBanner("DERROTA", nil) end
+	else
+		leftText.Text = ""
+		if fase == "Aguardando" and estado:GetAttribute("EsperandoGrupo") then
+			leftText.Text = "aguardando o grupo chegar... " .. (estado:GetAttribute("GrupoChegou") or 0) .. "/" .. (estado:GetAttribute("GrupoTotal") or 1)
+		end
 	end
-	leftText.Position = UDim2.new(0.5, 0, 0, 84)
 	lastPhase, lastWave = fase, wave
 	-- chefe
 	bossName.Text = estado:GetAttribute("ProximoChefe") or "O REI VERITY"
