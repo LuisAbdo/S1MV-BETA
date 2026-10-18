@@ -96,13 +96,29 @@ function MercadorService:SpawnCasa()
 	local porta = casa:FindFirstChild("porta casa", true)
 	if porta then porta.CanCollide = false; porta.Transparency = math.max(porta.Transparency, 0.35) end
 	local cf, sz = casa:GetBoundingBox()
-	local floorOff = (cf.Position.Y - sz.Y / 2) - casa:GetPivot().Position.Y
+	-- o "chao" da casa e a base da MAIOR peca (o corpo); enfeites pequenos que ficam mais baixos
+	-- nao contam (antes a casa ficava flutuando ~1 stud por causa deles)
+	local biggest, bigVol = nil, 0
+	for _, d in ipairs(casa:GetDescendants()) do
+		if d:IsA("BasePart") and d.Transparency < 1 then
+			local v = d.Size.X * d.Size.Y * d.Size.Z
+			if v > bigVol then biggest, bigVol = d, v end
+		end
+	end
+	local bottomY = cf.Position.Y - sz.Y / 2
+	if biggest then
+		local bcf, bs = biggest.CFrame, biggest.Size
+		local ext = math.abs(bcf.RightVector.Y) * bs.X + math.abs(bcf.UpVector.Y) * bs.Y + math.abs(bcf.LookVector.Y) * bs.Z
+		bottomY = bcf.Position.Y - ext / 2
+	end
+	local floorOff = bottomY - casa:GetPivot().Position.Y
 	-- a porta (lado +X do modelo) fica virada para o Nucleo
 	local toCore = Vector3.new(Core.Position.X - pos.X, 0, Core.Position.Z - pos.Z)
 	toCore = toCore.Magnitude > 0.1 and toCore.Unit or Vector3.new(1, 0, 0)
 	local right = toCore
 	local ground = Chunk:HeightAt(pos.X, pos.Z)
-	local target = CFrame.fromMatrix(Vector3.new(pos.X, ground - floorOff + 0.05, pos.Z), right, Vector3.yAxis)
+	-- afunda 0,3 stud na plataforma para nao sobrar fresta
+	local target = CFrame.fromMatrix(Vector3.new(pos.X, ground - floorOff - 0.3, pos.Z), right, Vector3.yAxis)
 	casa:PivotTo(target)
 	-- plataforma de grama embaixo da casa (com studs): nunca fica flutuando sobre degraus/vazio
 	local base = Instance.new("Part")

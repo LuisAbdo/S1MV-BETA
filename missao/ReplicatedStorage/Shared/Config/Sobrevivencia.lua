@@ -24,7 +24,7 @@ return {
 			Rampa = 80,        -- distancia em que o relevo vai de plano a altura cheia
 			SpawnLivre = 10,   -- raio plano e sem arvores em volta do spawn dos jogadores
 			CasaDistancia = { 220, 300 }, -- distancia da Casa do Mercador ate o Nucleo (longe do spawn)
-			CasaClareira = 30, -- raio plano e sem arvores em volta da Casa
+			CasaClareira = 42, -- raio plano e sem arvores em volta da Casa (a plataforma tem ~60 studs)
 		},
 		-- quantidade por chunk: { min, max } (a densidade varia por "manchas" de floresta)
 		Arvores = { 2, 6 },
