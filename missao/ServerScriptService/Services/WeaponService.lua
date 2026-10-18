@@ -96,13 +96,10 @@ local function giveTools(player, st, equip)
 	tool:SetAttribute("Slot", 1)
 	tool:SetAttribute("Arma", w.Id)
 	tool.Parent = backpack
-	local hammer = Modelos.MakeTool("Martelo", "MARTELO")
-	hammer:SetAttribute("Slot", 2)
-	hammer:SetAttribute("Arma", "Martelo")
-	hammer.Parent = backpack
+	-- (o martelo de reparo saiu do jogo)
 	-- todo jogador nasce com o machado de coleta (madeira e pedra)
 	local axe = Modelos.MakeTool("Machado", "MACHADO")
-	axe:SetAttribute("Slot", 3)
+	axe:SetAttribute("Slot", 2)
 	axe:SetAttribute("Arma", "Machado")
 	axe.Parent = backpack
 	if wasEquipped then
