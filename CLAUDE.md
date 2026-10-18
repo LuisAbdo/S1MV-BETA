@@ -25,6 +25,11 @@ Fluxo depois de cada mudança no Roblox Studio:
   depois disso é o backdoor do plugin — apagar antes de exportar.
 - Serviço novo entra na lista `ORDER` (e o tamanho de referência acima muda).
 
+## Places
+- **Missão:** place `127459307845798` (dentro da experiência do Main Lobby). A antiga
+  "Sobreviva a um milhão de veritys" (`129583206787205`) ficou só como cópia.
+- **Main Lobby:** place `100829485436480`. O teleporte usa `Config/Lobby.Lugares` (LobbyId/MissaoId).
+
 ## Restrições permanentes
 - Nunca usar modelos grátis com scripts nem `require()` de IDs numéricos.
 - Validar tudo no servidor.
