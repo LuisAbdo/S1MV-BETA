@@ -729,7 +729,10 @@ function BuildService:_trap(data, list, now, dt)
 		if data.tick < 0.25 then return end
 		data.tick = 0
 		for _, e in ipairs(list) do
-			if flatDist(e.pos, pos) <= ic.Raio then Enemy:Slow(e.model, ic.Lentidao, 0.6) end
+			if flatDist(e.pos, pos) <= ic.Raio then
+				Enemy:Slow(e.model, ic.Lentidao, 0.6)
+				if ic.Dano then Enemy:Damage(e.model, ic.Dano, pl) end
+			end
 		end
 	elseif key == "Quicador" then
 		if now - (data.lastFire or 0) < ic.Cadencia then return end
@@ -737,7 +740,10 @@ function BuildService:_trap(data, list, now, dt)
 			if flatDist(e.pos, pos) <= ic.Raio then
 				data.lastFire = now
 				local away = Vector3.new(e.pos.X - Core.Position.X, 0, e.pos.Z - Core.Position.Z)
-				for _, t in ipairs(enemiesNear(list, pos, ic.Raio + 1)) do Enemy:Knockback(t.model, away, ic.Forca) end
+				for _, t in ipairs(enemiesNear(list, pos, ic.Raio + 1)) do
+					if ic.Dano then Enemy:Damage(t.model, ic.Dano, pl) end
+					Enemy:Knockback(t.model, away, ic.Forca)
+				end
 				if data.head then
 					local base = data.head.CFrame
 					data.head.CFrame = base * CFrame.new(0, 0.8, 0)
@@ -767,7 +773,10 @@ function BuildService:_trap(data, list, now, dt)
 			remotes.Efeito:FireAllClients("TorretaTiro", data.model, origin, alvo.pos, "Dardo")
 			soundAt(origin, SONS.Estilingue or SONS.Golpe, 0.2)
 		else
-			for _, h in ipairs(hits) do Enemy:Knockback(h.e.model, Vector3.new(fwd.X, 0, fwd.Z), ic.Forca) end
+			for _, h in ipairs(hits) do
+				if ic.Dano then Enemy:Damage(h.e.model, ic.Dano, pl) end
+				Enemy:Knockback(h.e.model, Vector3.new(fwd.X, 0, fwd.Z), ic.Forca)
+			end
 			boom(origin, 4, Color3.fromRGB(120, 200, 255))
 			soundAt(origin, SONS.Explosao, 0.2)
 		end
