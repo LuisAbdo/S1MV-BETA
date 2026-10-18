@@ -340,12 +340,21 @@ local function onDefeat()
 	runId += 1
 	setPhase("Derrota")
 	tweenLight("Noite")
-	for _, p in ipairs(inGame()) do
-		remotes.FimDeJogo:FireClient(p, { wave = wave, abates = kills, checkpoint = checkpoint and checkpoint.wave or nil, gemas = p:GetAttribute("GemasRun") or 0 })
-	end
+	-- cutscene: o Verity Boss aparece e acaba com o Nucleo (DerrotaCliente); a tela de fim de
+	-- jogo so aparece quando ela termina
+	local T = Cfg.CutsceneDerrota or 8.5
+	remotes.Efeito:FireAllClients("DerrotaCutscene", Core.Center, T)
 	log("Derrota na wave " .. wave)
-	task.delay(2, function()
+	local info = { wave = wave, abates = kills, checkpoint = checkpoint and checkpoint.wave or nil }
+	local myRun = runId
+	task.delay(0.5, function()
 		if phase == "Derrota" then Enemy:ClearAll() end
+	end)
+	task.delay(T, function()
+		if phase ~= "Derrota" or runId ~= myRun then return end
+		for _, p in ipairs(inGame()) do
+			remotes.FimDeJogo:FireClient(p, { wave = info.wave, abates = info.abates, checkpoint = info.checkpoint, gemas = p:GetAttribute("GemasRun") or 0 })
+		end
 	end)
 end
 

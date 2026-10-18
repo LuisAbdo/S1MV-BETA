@@ -138,6 +138,13 @@ local SONS = {
 	MercadorCompra = { Id = id(80736831159506), V = 0.6, P = 0.9 },
 	Cansado = { Id = id(136811265205147), V = 0.25, P = 1.3 },       -- stamina zerou
 
+	-- DERROTA (cutscene: o Verity Boss destroi o Nucleo)
+	DerrotaAlarme = { Id = id(1839901373), V = 0.5, P = 0.8 },
+	DerrotaPouso = { Id = id(124499547710959), V = 1 },
+	DerrotaRugido = { Id = id(116576934219692), V = 1, P = 0.75 },
+	DerrotaImpacto = { Id = id(138533090376585), V = 0.9, P = 0.7 },
+	DerrotaExplosao = { Id = id(139210252225248), V = 1, P = 0.6 },
+
 	-- CLASSES: um som por habilidade (Z, X, C, Q e os efeitos delas)
 	Classes = {
 		Soldado = {
