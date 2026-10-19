@@ -4,8 +4,8 @@ return {
 	-- PLACES: as duas precisam estar na MESMA experiencia (grupo fechado + mesmo DataStore).
 	-- Com ID = 0 o jogo procura a place pelo NOME.
 	Lugares = {
-		LobbyId = 0, LobbyNome = "Main Lobby",
-		MissaoId = 0, MissaoNome = "Missao",
+		LobbyId = 100829485436480, LobbyNome = "Main Lobby",
+		MissaoId = 127459307845798, MissaoNome = "Missao",  -- place da partida (dentro da experiencia do Main Lobby)
 	},
 
 	-- PERFIL ---------------------------------------------------------------------------------

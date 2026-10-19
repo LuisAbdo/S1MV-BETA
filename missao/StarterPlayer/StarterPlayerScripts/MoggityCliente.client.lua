@@ -125,22 +125,23 @@ local function build(owner)
 	add(P({ Shape = Enum.PartType.Cylinder, Color = GREEN_D, Size = Vector3.new(0.35, 1.45, 1.45) }, owner), "cabeca", CFrame.new(0, -0.1, -2.3) * CFrame.Angles(0, math.rad(90), 0), "boca")
 	add(P({ Shape = Enum.PartType.Cylinder, Color = Color3.fromRGB(20, 40, 15), Size = Vector3.new(0.12, 0.85, 0.85) }, owner), "cabeca", CFrame.new(0, -0.1, -2.5) * CFrame.Angles(0, math.rad(90), 0), "boca")
 	for _, sx in ipairs({ -1, 1 }) do
-		add(P({ Shape = Enum.PartType.Ball, Color = Color3.fromRGB(15, 15, 20), Size = Vector3.one * 0.5 }, owner), "cabeca", CFrame.new(0.55 * sx, 0.45, -1.05))
-		add(P({ Shape = Enum.PartType.Ball, Color = Color3.new(1, 1, 1), Material = Enum.Material.Neon, Size = Vector3.one * 0.17 }, owner), "cabeca", CFrame.new(0.5 * sx, 0.56, -1.27))
+		add(P({ Shape = Enum.PartType.Ball, Color = Color3.fromRGB(15, 15, 20), Size = Vector3.one * 0.5 }, owner), "cabeca", CFrame.new(0.55 * sx, 0.3, -1.1))
+		add(P({ Shape = Enum.PartType.Ball, Color = Color3.new(1, 1, 1), Material = Enum.Material.Neon, Size = Vector3.one * 0.17 }, owner), "cabeca", CFrame.new(0.5 * sx, 0.41, -1.32))
 	end
 	-- folhinhas atras da cabeca
 	for _, sx in ipairs({ -1, 1 }) do
 		add(ellipsoid({ Color = LEAF, Size = Vector3.new(0.35, 0.3, 1.3) }, owner), "cabeca", CFrame.new(0.3 * sx, -0.2, 1.4) * CFrame.Angles(math.rad(-25), math.rad(18 * sx), 0))
 	end
 	-- capacete de soldado com estrelas e divisa
-	add(ellipsoid({ Color = NAVY, Size = Vector3.new(2.95, 1.7, 2.95) }, owner), "cabeca", CFrame.new(0, 0.7, 0.1))
-	add(P({ Shape = Enum.PartType.Cylinder, Color = Color3.fromRGB(26, 32, 54), Size = Vector3.new(0.18, 3.2, 3.2) }, owner), "cabeca", CFrame.new(0, 0.2, 0.05) * CFrame.Angles(0, 0, math.rad(90)))
+	-- (capacete fica so no alto da cabeca: aba acima dos olhos)
+	add(ellipsoid({ Color = NAVY, Size = Vector3.new(2.75, 1.45, 2.75) }, owner), "cabeca", CFrame.new(0, 1.0, 0.15))
+	add(P({ Shape = Enum.PartType.Cylinder, Color = Color3.fromRGB(26, 32, 54), Size = Vector3.new(0.16, 2.95, 2.95) }, owner), "cabeca", CFrame.new(0, 0.82, 0.05) * CFrame.Angles(0, 0, math.rad(90)))
 	for i = -1, 1 do
-		add(P({ Color = GOLD, Material = Enum.Material.Neon, Size = Vector3.new(0.26, 0.26, 0.08) }, owner), "cabeca",
-			CFrame.new(i * 0.55, 1.05 - math.abs(i) * 0.12, -1.25 + math.abs(i) * 0.12) * CFrame.Angles(math.rad(-30), 0, math.rad(45)))
+		add(P({ Color = GOLD, Material = Enum.Material.Neon, Size = Vector3.new(0.24, 0.24, 0.08) }, owner), "cabeca",
+			CFrame.new(i * 0.5, 1.32 - math.abs(i) * 0.1, -1.05 + math.abs(i) * 0.12) * CFrame.Angles(math.rad(-35), 0, math.rad(45)))
 	end
-	for _, y in ipairs({ 0.75, 1.0 }) do
-		add(P({ Color = GOLD, Size = Vector3.new(0.08, 0.14, 0.6) }, owner), "cabeca", CFrame.new(1.42, y, 0.15) * CFrame.Angles(0, 0, math.rad(15)))
+	for _, y in ipairs({ 1.05, 1.28 }) do
+		add(P({ Color = GOLD, Size = Vector3.new(0.08, 0.12, 0.55) }, owner), "cabeca", CFrame.new(1.3, y, 0.2) * CFrame.Angles(0, 0, math.rad(15)))
 	end
 	return list
 end
